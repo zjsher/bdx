@@ -1,8 +1,9 @@
 ---
 name: close
-description: Finalize a bd task — ensure a summary exists (auto-running summarize if not), then `bd close` with a one-line resolution. Use when the work is actually done and you're ready to retire the issue from the active queue. Skip if there's still real follow-up work — keep the bd open. Predecessor: summarize (close runs it implicitly if missing). Successor: terminal — close ends the lifecycle.
+description: Finalize a bd task — ensure a summary exists (auto-running summarize if not), then `bd close` with a one-line resolution. Accepts summarize's --personas / --deep flags and passes them through. Use when the work is actually done and you're ready to retire the issue from the active queue. Skip if there's still real follow-up work — keep the bd open. Predecessor: summarize (close runs it implicitly if missing). Successor: terminal — close ends the lifecycle.
 user-invocable: true
-argument-hint: bd-id [and/or resolution message]
+argument-hint: "bd-id [--personas] [--deep] [and/or resolution message]"
+model: sonnet
 ---
 
 Close out a finished (or abandoned) task: verify a summary exists for the bd issue, then `bd close` it with a resolution. The **finalize** step that ends the triage → plan → attach → summarize → close lifecycle.
@@ -11,12 +12,25 @@ Close out a finished (or abandoned) task: verify a summary exists for the bd iss
 
 Zombie issues (summary written, bd never closed) are the failure mode this skill prevents.
 
+## Arguments
+
+`$ARGUMENTS` is a bd-id, an optional resolution message, and optional flags in any position.
+
+| Flag | Effect |
+| --- | --- |
+| `--personas` | Passed through to `summarize` if it runs: adds an inline persona pass. |
+| `--deep` | Passed through to `summarize` if it runs: persona pass in an opus subagent. |
+
+**Strip flags before reading the trailing text as the resolution message** — otherwise `--deep` lands inside the tombstone. Both flags are inert when a summary already exists and `summarize` doesn't run; say so rather than running a persona pass over the old summary.
+
+This skill pins `model: sonnet`. That's deliberate and load-bearing: `summarize` also pins sonnet, but a skill's frontmatter only applies when the *user* invokes it — when close runs the summarize process inline (step 3), it runs on close's model. Pinning both keeps the auto-summarize path as cheap as the direct one.
+
 ## What this skill does (in order)
 
-1. Parse `$ARGUMENTS` for the bd-id and optional resolution message. If the bd-id is missing, infer from the active conversation or plan file in context; ask the user if still ambiguous.
+1. Parse `$ARGUMENTS` for the bd-id, optional flags, and optional resolution message. If the bd-id is missing, infer from the active conversation or plan file in context; ask the user if still ambiguous.
 2. Check for an existing summary: `grep -l "^bd: <bd-id>$" "$AGENT_HOME/summary"/*.md` (a summary is any file with the matching `bd:` frontmatter line). Run this in parallel with step 1's id resolution when possible.
-3. **If no summary exists**, run the full `summarize` process for this bd-id before continuing. Do not skip this — summaries are the durable record of the work; a close without one loses history.
-4. Resolve the resolution message:
+3. **If no summary exists**, run the full `summarize` process for this bd-id before continuing, forwarding any `--personas` / `--deep` flag. Do not skip this — summaries are the durable record of the work; a close without one loses history.
+4. Resolve the resolution message (from the flag-stripped text):
    - If passed in `$ARGUMENTS` → use it.
    - If `$ARGUMENTS` contains "abandon" / "kill" / "drop" → default to `"abandoned: <verbatim-trailing-text>"`.
    - Otherwise → default silently to `"done"`. Do **not** prompt — the summary is the durable record; the resolution is a one-line tombstone and "done" is fine for the clean-completion case.
@@ -40,9 +54,9 @@ Zombie issues (summary written, bd never closed) are the failure mode this skill
 
 ## Process
 
-1. Resolve the bd-id (from `$ARGUMENTS`, active plan file, or ask).
+1. Resolve the bd-id and strip any `--personas` / `--deep` flag from `$ARGUMENTS` (from `$ARGUMENTS`, active plan file, or ask).
 2. **Single batched message** — run in parallel: summary grep (`grep -l "^bd: <bd-id>$" "$AGENT_HOME/summary"/*.md 2>/dev/null`), and `bd show <bd-id>` to confirm the issue exists and is closeable.
-3. Resolve the resolution: `$ARGUMENTS` if passed, `"abandoned: ..."` on abandon-signal keywords, else `"done"`. No prompt for the clean case.
-4. If no summary is found → invoke the `summarize` process (follow that skill's instructions end-to-end, with this bd-id). After it writes the summary, continue.
+3. Resolve the resolution from the flag-stripped text: `$ARGUMENTS` if passed, `"abandoned: ..."` on abandon-signal keywords, else `"done"`. No prompt for the clean case.
+4. If no summary is found → invoke the `summarize` process (follow that skill's instructions end-to-end, with this bd-id and any forwarded persona flag). After it writes the summary, continue.
 5. Run `BDX_ALLOW_BARE_BD_CLOSE=1 bd close <bd-id> -r "<resolution>"`.
 6. Report one line: `Closed <bd-id>: "<resolution>" — summary at <path>`.

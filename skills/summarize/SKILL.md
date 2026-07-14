@@ -1,13 +1,28 @@
 ---
 name: summarize
-description: Write the durable post-implementation record to $AGENT_HOME/summary/, attach persona reviews if any match, and back-link to the bd issue. Use when a task's work is done and ready to be remembered — even if the bd isn't being closed yet (follow-ups can keep the bd open). Skip mid-flight (use dump for fearlessly-log-out snapshots) or for trivial fixes where a `bd close -r` is the whole record. Predecessor: attach + a finished work session. Successor: close (which auto-runs summarize if missing).
+description: Write the durable post-implementation record to $AGENT_HOME/summary/ and back-link to the bd issue. Persona reviews are opt-in via --personas. Use when a task's work is done and ready to be remembered — even if the bd isn't being closed yet (follow-ups can keep the bd open). Skip mid-flight (use dump for fearlessly-log-out snapshots) or for trivial fixes where a `bd close -r` is the whole record. Predecessor: attach + a finished work session. Successor: close (which auto-runs summarize if missing).
 user-invocable: true
-argument-hint: optional-focus-or-filename
+argument-hint: "[--personas] [--deep] [optional-focus-or-filename]"
+model: sonnet
 ---
 
-Write the durable post-implementation record for this session's work to `$AGENT_HOME/summary/` as an **Obsidian-friendly note**. Persona reviews attach here if any match; cross-references are wikilinks (`[[...]]`) so graph view connects this summary to its plan, prior contexts, files, tickets, and concept hubs.
+Write the durable post-implementation record for this session's work to `$AGENT_HOME/summary/` as an **Obsidian-friendly note**. Persona reviews attach here when opted into via `--personas` / `--deep`; cross-references are wikilinks (`[[...]]`) so graph view connects this summary to its plan, prior contexts, files, tickets, and concept hubs.
 
 **Trigger**: the work is done — even if the bd stays open for follow-ups. **Skip** if (a) the session is still mid-flight — use `dump` to snapshot head-state instead, or (b) the work is trivial enough that the `bd close -r "<one-liner>"` resolution captures everything worth remembering.
+
+## Arguments
+
+Flags may appear anywhere in `$ARGUMENTS`; strip them before deriving the slug from whatever text remains.
+
+| Flag | Effect |
+| --- | --- |
+| *(none)* | Draft only. No persona pass. This is the common case. |
+| `--personas` | Run the persona pass (step 9) inline on this skill's model. |
+| `--deep` | Run the persona pass in an opus subagent. Implies `--personas`. |
+
+The skill pins `model: sonnet` in frontmatter — drafting a summary is a recall-and-transcribe job over a conversation the model can already see, and sonnet does it at a fraction of the cost. `--deep` is the escape hatch when the personas' judgment is the point and you want the stronger model rendering it.
+
+`--deep` escalates **only** the persona pass, never the drafting. The persona pass takes a file path and reads the written summary — it needs no conversation context, so it delegates to a subagent losslessly. Drafting does need the conversation, so it always stays inline on this skill's model. Never spawn a subagent to draft the summary; a subagent cannot see the session and would be reconstructing from a lossy brief.
 
 ## Output location
 
@@ -81,7 +96,7 @@ sessions:
 <how the change was validated — tests run, manual checks, what was NOT verified>
 
 ## Persona reviews
-<Appended in step 7. Per-persona blocks from `bdx.persona auto` over this summary, each under a `### <persona-name>` subheader, verbatim. Section is absent if no personas matched.>
+<Appended in step 9, only when `--personas` / `--deep` was passed. Per-persona blocks from `bdx.persona auto` over this summary, each under a `### <persona-name>` subheader, verbatim. Section is absent by default, and absent if no personas matched.>
 ```
 
 ## Rules
@@ -93,6 +108,7 @@ sessions:
 - **Keep it terse.** Handoff note, not a design doc — skimmable in under two minutes.
 - **Every cross-reference is a wikilink.** If you catch yourself writing `[text](path.md)` for a vault note, convert it.
 - **`private: false` by default.** Summaries are the strongest team-sync candidate — flip to `true` only for personal/side-project work. The sync layer honors the flag.
+- **Personas are opt-in.** The default run is draft-only. Don't volunteer a persona pass because the work "seems important" — the flag is the signal, and an unasked-for review is the cost this skill is trying to avoid. If a summary looks like it'd benefit from one, say so in your one-line report and let the user re-run with `--personas`.
 - **Persona blocks are pasted verbatim.** When the persona pass returns output, paste it as-is — don't smooth contradictions between personas, don't pick a winner, don't rewrite into wikilink style. The voices and disagreements are the value. The summary's own sections still follow all the linking rules; the persona section is an exception.
 
 ## Plan mutation: final sweep, no rewrite
@@ -112,14 +128,19 @@ The summary is the canonical "what shipped" record — that's its job. The plan 
 5. Read `$CLAUDE_SESSION_ID` (set by SessionStart hook). If empty, set `sessions: []`.
 6. Scan the conversation for: original request, plan, decisions, file changes, verification steps, unresolved items, related prior summaries/context dumps.
 7. **Final plan sweep** (skip if `bd: none`): locate `$AGENT_HOME/plan/<bd-id>-*.md`. Tick any remaining `- [ ]` whose work is clearly done (with optional `→ <divergence>` annotations per the rules above). Do not touch other plan content. Append `$CLAUDE_SESSION_ID` to the plan's `sessions:` list if not already present.
-8. Write the summary file using the template above, with wikilinks everywhere, `kind: agent-note`, the resolved `parent:`, and `$CLAUDE_SESSION_ID` in `sessions:`. Do not include the `## Persona reviews` section yet — the next step appends it if personas return output.
-9. **Persona pass.** Follow the `persona` skill's instructions inline with the following free-form prompt as `$ARGUMENTS` (substitute the real path):
+8. Write the summary file using the template above, with wikilinks everywhere, `kind: agent-note`, the resolved `parent:`, and `$CLAUDE_SESSION_ID` in `sessions:`. Do not include the `## Persona reviews` section — step 9 appends it only when a persona flag was passed and personas returned output.
+9. **Persona pass** — *skip entirely unless `--personas` or `--deep` was passed.* By default the summary ends at step 8 and the `## Persona reviews` section is absent.
+
+   The prompt below is the same either way; only who runs it changes. Substitute the real path:
 
    ```
    auto You are about to critique an implementation that was just shipped. The full writeup — what was built, files touched, key decisions, tradeoffs, what's verified, what's deferred — is at <full-path-to-just-written-summary>. Read it as evidence about the work and react to the work itself: the decisions, the scope, the approach, what was skipped or stubbed, what looks load-bearing vs. fragile. You are NOT reviewing the prose of the summary document — do not edit its wording, structure, or word choice. The summary is the lens onto the implementation; the implementation is the target.
    ```
 
-   The persona skill's free-form path will pass this through verbatim so the selected personas know the summary file is *evidence about the work*, not the artifact under review. The persona skill returns per-persona blocks, or "no matching persona" with no output.
+   - **`--personas`**: follow the `persona` skill's instructions inline, with the prompt above as its `$ARGUMENTS`.
+   - **`--deep`**: dispatch the same prompt to a subagent — `Agent` with `model: "opus"`, `subagent_type: "general-purpose"` — instructing it to follow the `persona` skill's instructions with that prompt as `$ARGUMENTS` and return the per-persona blocks verbatim as its final message. The subagent needs no conversation context; the summary file is the whole input.
+
+   The persona skill's free-form path passes the prompt through verbatim so the selected personas know the summary file is *evidence about the work*, not the artifact under review. Either path returns per-persona blocks, or "no matching persona" with no output.
    - If output was returned: `Edit` the file to append a `## Persona reviews` section at the end, with each persona's block under a `### <persona-name>` subheader, verbatim.
    - If no persona matched: do nothing — the section stays absent. Do not block the summary on persona availability.
    - Do not re-invoke a persona that already gave a take in this session's conversation — skip it to avoid duplicating output the user already saw.

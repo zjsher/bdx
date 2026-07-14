@@ -50,12 +50,12 @@ plan → attach → (work, ticking with check / dump?) → close
 
 **Less common:**
 
-- `summarize` — write the durable post-implementation record to `$AGENT_HOME/summary/`, with optional persona reviews. Usually invoked by `close`; standalone-callable when you want the writeup before closing.
+- `summarize` — write the durable post-implementation record to `$AGENT_HOME/summary/`. Usually invoked by `close`; standalone-callable when you want the writeup before closing. Runs on sonnet and skips persona reviews by default; pass `--personas` for an inline review pass, or `--deep` to run it on opus. `close` forwards both flags.
 - `scope` — retrofit an existing bd (no plan, no project label) into the lifecycle. Use when a bd was created bare via phone capture or `bd create`.
 - `triage` — drain inbox + unscoped-bd queues into structured tasks. Hands off to `plan` or `scope`.
 - `label` — apply plain labels or namespaced external refs (`jira:`, `linear:`, `gh:`, `figma:`); namespaced refs propagate into the plan's frontmatter.
 - `manifest` — register or update a project entry in `$AGENT_HOME/manifest.md` so `plan`/`scope` can validate labels against it.
-- `persona` — invoke a saved reviewer voice over a target (file, bd-id, diff, prose). Used internally by `summarize`.
+- `persona` — invoke a saved reviewer voice over a target (file, bd-id, diff, prose). Used by `summarize` under `--personas` / `--deep`.
 
 ## `$AGENT_HOME`
 
