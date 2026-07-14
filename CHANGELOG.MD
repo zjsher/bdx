@@ -1,3 +1,23 @@
+## v0.5.15 (2026-07-14)
+
+I don't have enough information to write a detailed changelog. The commit message "persona patch" is provided, but no actual code diffs were included in your message for me to analyze.
+
+To write an accurate changelog based on the rules provided, I need:
+- The actual code diffs showing what changed
+- File contents before/after
+- Or at minimum, a diff output showing added/removed/modified lines
+
+Without this information, I cannot responsibly describe specific functions, components, or capabilities, as doing so would mean making up details not present in what you've shared (violating rule #1).
+
+**Please provide the code diffs** (e.g., `git show 96cb690` or `git diff` output) so I can write an accurate, specific changelog entry.
+
+If you'd like, I can write a minimal placeholder entry based solely on the commit message, like:
+
+### 🛠️ Improvements
+- [commits] Applied a patch related to persona configuration/behavior (details unspecified in commit message)
+
+But this would be vague and not meet the specificity bar requested. Let me know how you'd like to proceed.
+
 ## v0.5.13 (2026-05-01)
 
 ### 🛠️ Improvements
