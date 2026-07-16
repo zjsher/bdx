@@ -1,11 +1,11 @@
 ---
-name: review-slice
+name: slice-review
 description: Review a slice that /slice just landed under a constrained finding-contract - each finding needs a concrete failure scenario and a CONFIRMED/PLAUSIBLE verdict, an empty findings list is a PASS, only CONFIRMED blocks, PLAUSIBLE goes to the backlog, and the review runs exactly one round. Optionally borrows a saved persona as its lens. Use to close a slice without the review-until-clean loop that terminates by exhaustion instead of correctness.
 user-invocable: true
 argument-hint: [persona-slug] [target: diff|staged|HEAD|bd-id|path]
 ---
 
-# review-slice
+# slice-review
 
 Review one slice under a contract that only fires on **real defects in what this slice changed.** This is the counterweight to an open-ended adversarial review: a reviewer told to "find what's wrong" treats an empty report as failing its job, so it manufactures speculative edge cases and you spend rounds whittling them down. This skill changes the reviewer's contract so an empty findings list is the *expected* outcome of a good slice - which is what makes one round enough.
 
@@ -83,6 +83,6 @@ Rules: 1-2 sentences, no headers, name the concrete next command, never roll int
 
 ## Composition
 
-- Runs **after** a `/slice` lands - `slice` builds and verifies one increment, `review-slice` gates it once, then hands back. Together they replace the review-until-clean loop with implement -> review-once -> fix-confirmed -> next.
+- Runs **after** a `/slice` lands - `slice` builds and verifies one increment, `slice-review` gates it once, then hands back. Together they replace the review-until-clean loop with implement -> review-once -> fix-confirmed -> next.
 - Reuses `bdx:persona` for voice and the shared `.claude/self-check.md` for the checklist. It does not re-implement either.
 - The pairing is a ratchet: findings that survive here become self-check lines the implementer runs next time, so the reviewer's job shrinks slice over slice.

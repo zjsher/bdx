@@ -79,7 +79,7 @@ point is that the downstream reviewer finds nothing because you already ran its 
   it is grown by the reviewer, not seeded by this skill.
 - This is a self-check, not a second implementation pass. It catches the recurring
   category, it does not invite gold-plating - the anti-gold-plating guard still binds.
-- The list is a **ratchet**: when `review-slice` later confirms a defect that survived this
+- The list is a **ratchet**: when `slice-review` later confirms a defect that survived this
   check, it appends the line that would have caught it. Next slice, this check catches it.
   You don't edit the list here; you just run it.
 
@@ -188,4 +188,4 @@ Section appended to the plan file:
 
 - Runs *after* a plan/spec step (e.g. a scoped spine). It does not plan; it executes one increment of a plan.
 - Pairs with an adversarial pre-gate (defend the slice's design) and a post-implementation audit (security / scale pass) once the spine is complete.
-- **Pairs with `/review-slice` per slice.** slice builds and verifies one increment; review-slice gates it once under a finding-contract (concrete failure scenario required, CONFIRMED blocks / PLAUSIBLE backlogged, empty = PASS, one round), then hands back. That replaces review-until-clean - which terminates by exhaustion against an adversary that must always find something - with implement -> review-once -> fix-confirmed -> next. Confirmed findings ratchet into `.claude/self-check.md`, which this skill's pre-review self-check then runs, so the reviewer converges toward empty.
+- **Pairs with `/slice-review` per slice.** slice builds and verifies one increment; slice-review gates it once under a finding-contract (concrete failure scenario required, CONFIRMED blocks / PLAUSIBLE backlogged, empty = PASS, one round), then hands back. That replaces review-until-clean - which terminates by exhaustion against an adversary that must always find something - with implement -> review-once -> fix-confirmed -> next. Confirmed findings ratchet into `.claude/self-check.md`, which this skill's pre-review self-check then runs, so the reviewer converges toward empty.
