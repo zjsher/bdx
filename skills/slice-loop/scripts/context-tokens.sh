@@ -16,6 +16,11 @@
 #             2 = transcript not found (treat as "cannot measure", not "over").
 set -euo pipefail
 
+if ! command -v jq >/dev/null 2>&1; then
+  echo "context-tokens: jq not installed (required to parse the transcript)" >&2
+  exit 2
+fi
+
 CAP_PCT="${1:-70}"
 WINDOW="${2:-${CLAUDE_CONTEXT_WINDOW:-1000000}}"
 
