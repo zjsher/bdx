@@ -1,3 +1,14 @@
+## v0.5.18 (2026-07-16)
+
+### ✨ Features
+- [commits] Added a new "Slice" feature along with an associated slice review capability
+
+### 🐛 Bug Fixes
+- [commits] Addressed a failure mode related to the `jq` dependency
+
+### 🛠️ Improvements
+- [commits] Iterated on the Slice feature with a slice-loop mechanism and additional slice-review refinements
+
 ## v0.5.17 (2026-07-16)
 
 ### 🛠️ Improvements
