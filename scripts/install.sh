@@ -9,8 +9,8 @@
 #   6. perms       (merge bdx allowlist into ~/.claude/settings.json — touches ~/.claude/)
 #
 # Usage:
-#   bash <(curl -fsSL https://raw.githubusercontent.com/zeejers/bdx-plugin/refs/heads/development/scripts/install.sh)
-#   curl -fsSL https://raw.githubusercontent.com/zeejers/bdx-plugin/refs/heads/development/scripts/install.sh | bash
+#   bash <(curl -fsSL https://raw.githubusercontent.com/zeejers/bdx/refs/heads/development/scripts/install.sh)
+#   curl -fsSL https://raw.githubusercontent.com/zeejers/bdx/refs/heads/development/scripts/install.sh | bash
 #   ./install.sh                  # interactive
 #   ./install.sh --yes            # non-interactive, accept defaults
 #   ./install.sh --skip-env       # skip the shell-profile prompts
@@ -290,7 +290,7 @@ main() {
   else
     local target_ah="${AGENT_HOME:-${chosen_agent_home:-$HOME/.bdx-agent}}"
     local templates_branch="${BDX_TEMPLATES_BRANCH:-development}"
-    local base_url="https://raw.githubusercontent.com/zeejers/bdx-plugin/refs/heads/${templates_branch}/examples"
+    local base_url="https://raw.githubusercontent.com/zeejers/bdx/refs/heads/${templates_branch}/examples"
     local has_manifest=0 has_personas=0
     [ -f "$target_ah/manifest.md" ] && has_manifest=1
     [ -d "$target_ah/personas" ] && ls "$target_ah/personas"/*.md >/dev/null 2>&1 && has_personas=1
@@ -395,7 +395,7 @@ main() {
   if [ "$SKIP_ENV" = 0 ]; then
     steps+=("open a new shell (or: source ${rc:-<your shell rc>})")
   fi
-  steps+=("claude plugin marketplace add zeejers/bdx-plugin")
+  steps+=("claude plugin marketplace add zeejers/bdx")
   steps+=("claude plugin install bdx@bdx-marketplace")
   steps+=("")
   steps+=("then in any project:")
