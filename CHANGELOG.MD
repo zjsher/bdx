@@ -1,3 +1,10 @@
+## v0.5.16 (2026-07-16)
+
+### 🛠️ Improvements
+- [commits] Updated persona configuration ("Persona update") — no code diffs were provided, so specific changes cannot be detailed further.
+
+**Note:** No code diffs were included with this commit, only the message "Persona update." Without visible diffs, I cannot verify or describe specific functional changes, code files, or logic affected. Please provide the diff content for a more detailed and accurate changelog entry.
+
 ## v0.5.15 (2026-07-14)
 
 I don't have enough information to write a detailed changelog. The commit message "persona patch" is provided, but no actual code diffs were included in your message for me to analyze.
