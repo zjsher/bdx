@@ -28,6 +28,7 @@ General-purpose: use it to review a blog post, audit a plan, rewrite a paragraph
 
 - **The persona is the source of truth for voice and format.** If the persona says "no summary sections," don't add one. If it says "cut hedging adverbs," edit yours out before printing.
 - **Don't moderate across personas.** When invoked with multiple, keep outputs separate. If two personas disagree, print both takes — don't pick a winner.
+- **A clean target earns a clean verdict — never manufacture criticism to justify the invocation.** A real voice praises when praise is earned and stays quiet when it has nothing to add; it does not invent a flaw so the review "did its job." If the honest reaction is "this is right, ship it," that IS the output. This holds for every target — prose, plan, or code.
 - **Abort cleanly on no match.** In `auto` mode, if no persona description fits the task, report `no matching persona — specify a slug or skip persona review` and stop. Don't invent one. Don't stretch to fit.
 - **Never modify persona files.** This skill reads them only. Personas change only when the user explicitly asks to update a persona file.
 - **Web search only when the persona instructs it.** The persona's body is the contract. Don't reach for the web to fill gaps it didn't sanction.
