@@ -1,3 +1,10 @@
+## v0.5.17 (2026-07-16)
+
+### 🛠️ Improvements
+- [commits] General improvements made to the codebase (commit c872d48: "Improvements")
+
+**Note:** No code diffs were provided in the input, only the commit message "Improvements." Without access to the actual code changes, specific details about functions, components, or capabilities modified cannot be determined. Please provide the diff content for a more detailed and accurate changelog.
+
 ## v0.5.16 (2026-07-16)
 
 ### 🛠️ Improvements
