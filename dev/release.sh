@@ -73,6 +73,6 @@ lazy-changelog generate --prepend CHANGELOG.md
 
 echo
 echo "Done. Next steps:"
-echo "  git commit -m 'release v$NEW' \\"
-echo "  git tag v$NEW \\"
+echo "  git commit -m 'release v$NEW' && \\"
+echo "  git tag v$NEW && \\"
 echo "  git push && git push --tags"

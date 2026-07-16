@@ -1,3 +1,10 @@
+## v0.6.1 (2026-07-16)
+
+### 🛠️ Improvements
+- [commits] General quality-of-life improvements (no code diff provided to specify exact changes)
+
+**Note:** Only the commit message "QoL" was provided with no accompanying code diffs, so specific implementation details (function names, components, or behavioral changes) cannot be determined. Please provide the code diff for a more detailed and accurate changelog entry.
+
 ## v0.6.0 (2026-07-16)
 
 ### ✨ Features
