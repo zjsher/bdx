@@ -1,3 +1,10 @@
+## v0.7.2 (2026-07-17)
+
+### 📝 Notes
+- [commits] No code diffs were provided—only a commit message ("Skeleton work") is available, which is insufficient to determine specific features, fixes, or improvements.
+
+If you can share the actual code diffs associated with this commit, I can provide a detailed, accurate changelog based on the real changes made.
+
 ## v0.7.1 (2026-07-17)
 
 ### ✨ Features
