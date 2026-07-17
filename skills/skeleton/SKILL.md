@@ -59,6 +59,7 @@ Directly under the note, one short plain-prose line. The skeleton is alive - nam
 
 - **Keep the spine, add rigor** -> `Skeleton runs. Switch to /slice to thicken it one verifiable increment at a time, or /slice-loop to finish the plan autonomously.`
 - **Keep cranking fast** -> `Skeleton runs. Say the word and I'll thicken it - <next step> - same fast mode, no ceremony.`
+- **Phase complete** -> `Phase done. Gate it: promote the checks to real tests + one review over the phase diff, then /skeleton <next step> to continue.`
 - **Good enough** -> `Skeleton runs and demos. Stop here, or pick a deferred item to build next: <items>.`
 - **Blocked** -> `Blocked: <one-line reason>. <what the human must decide or provide>.`
 
@@ -72,8 +73,9 @@ If asked to continue past the skeleton *without* switching to `/slice`, stay fas
 - **Promote to a persisted check only where it's cheap.** When an increment adds behavior the end-to-end check can't see - a branch, an error path, a computed value - drop in a single assertion or a one-line script for exactly that, *if it costs seconds, not a framework.* Add the one check that would catch this increment regressing; don't build a suite.
 - **Prove-it-can-fail stays selective here.** On the one load-bearing piece, break its check once and watch it go red before restoring - a check you never saw fail is a claim, not a check. Skip the ritual on the trivial ones. This is the single place skeleton borrows `/slice`'s rigor, and only there.
 - **Still no ledger, no bd, no review pass.** The moment you actually need those - a defensible trail, a real review, someone auditing each step - that need *is* the signal to switch to `/slice`, not to bolt the ceremony onto this skill. Fast mode that grows paperwork is just `/slice` with worse discipline.
+- **Phase boundaries are the gate.** When thickening completes a phase (a plan's `###` section, or a seam named up front), leave fast mode briefly: promote the cheap checks into real persisted tests for what the phase added, and run one review over the phase diff (`/slice-review`, or `/quality-audit` for a cold read). Then re-enter fast mode for the next phase. This is what makes fast-thicken production-viable instead of interview-only - the regression net accumulates per phase, not per increment, and a defect is caught at the seam it was born in, not at ship.
 
-This is the lane for a timed build - interview, demo, spike: land more real behavior, show green checks, keep one or two that can genuinely fail, and never spend a minute on a record no one in the room will read.
+This is the lane for a timed build - interview, demo, spike: land more real behavior, show green checks, keep one or two that can genuinely fail, and never spend a minute on a record no one in the room will read. (For a throwaway build, skip the phase gate too - it exists for code that outlives the session.)
 
 ## Decisions in the user's language
 

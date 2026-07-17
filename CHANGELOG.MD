@@ -1,3 +1,11 @@
+## v0.7.3 (2026-07-17)
+
+### 🛠️ Improvements
+- [commits] Continued work on an application "skeleton" (initial structural/scaffolding work)
+- [commits] Tuning adjustments made to "slice" logic as part of the skeleton work
+
+**Note:** Only commit messages were provided ("Skeleton and slice tuning", "Skeleton work") with no accompanying code diffs, so specific implementation details (function names, components, files changed) cannot be determined or described.
+
 ## v0.7.2 (2026-07-17)
 
 ### 📝 Notes
