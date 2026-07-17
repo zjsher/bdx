@@ -1,6 +1,6 @@
 {
   "name": "bdx",
-  "version": "0.7.4",
+  "version": "0.7.5",
   "description": "Beads workflow skills + hooks: the bd task lifecycle (plan, attach, check, dump, summarize, close, label, scope, triage, manifest) plus disciplined slice-based implementation (skeleton, slice, slice-review, slice-loop). Auto-attaches sessions to bd tasks and enforces summary-before-close.",
   "author": {
     "name": "Zach Sherbondy"
