@@ -1,3 +1,10 @@
+## v0.7.4 (2026-07-17)
+
+### 🛠️ Improvements
+- [commits] Improved skeleton and slice handling based on commit message "Skeleton / slice improvements"
+
+Note: No code diffs were provided, only the commit message. A more detailed and accurate changelog would require access to the actual code changes to identify specific functions, components, or behaviors affected.
+
 ## v0.7.3 (2026-07-17)
 
 ### 🛠️ Improvements

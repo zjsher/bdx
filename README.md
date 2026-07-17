@@ -72,6 +72,7 @@ The trade is a ceremony dial, not a binary. `skeleton` is the fast end - a runni
 - `slice` - implement one bounded, verifiable increment (walking-skeleton first), verify with an executable check, log to the decision ledger, halt.
 - `slice-review` - review the landed slice in exactly one round under a constrained finding-contract; empty findings = PASS.
 - `slice-loop` - orchestrate slice ⇄ slice-review autonomously via worker subagents until a stated goal is met, with quality audits at every handoff.
+- `care` - inject the "what you care about" index: ~40 named failure/quality anchors (bad inputs, races, instance death, tenancy, seams...) that widen the active agent's attention before a review or a thicken run. Point it at a custom index (`/care path/to/index.md`, or a name in `$AGENT_HOME/care/`) to swap in a domain-specific list. A lens, not a license - findings still need the finding-contract, and implementation-side concerns go to Deferred, never into unasked code.
 
 **Less common:**
 
