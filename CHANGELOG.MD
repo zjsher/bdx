@@ -1,3 +1,26 @@
+## v0.7.5 (2026-07-17)
+
+I'm unable to generate a meaningful changelog from the information provided. The commit message "Care" (6c67391) gives no substantive detail, and no actual code diffs were included in the input for me to analyze.
+
+To write an accurate changelog following the rules (especially Rule #1: no fabrication), I would need:
+
+1. **The actual code diff/patch content** showing what files were changed, added, or removed
+2. Function names, class names, or component names that were modified
+3. Specific logic changes (e.g., new conditionals, new API endpoints, altered return values)
+
+**What I can confirm from the commit message alone:**
+- A single commit titled "Care" was made (hash: 6c67391)
+- No description of scope, files affected, or intent is discernible from this title
+
+If you provide the actual diff output (e.g., `git show 6c67391` or `git diff`), I can produce a proper changelog with specific, source-attributed entries like:
+
+```
+### ✨ Features
+- [code] Added validation for `patientCareLevel` in `CareService.ts`
+```
+
+Please share the diff content and I'll generate accurate release notes based on the real changes.
+
 ## v0.7.4 (2026-07-17)
 
 ### 🛠️ Improvements
