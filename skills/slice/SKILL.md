@@ -1,6 +1,6 @@
 ---
 name: slice
-description: Drive implementation in bounded, verifiable, defensible increments - one slice per turn, walking-skeleton first, verify-and-narrate, then halt. Use when you want visible, reviewable, senior-looking implementation instead of a monolithic autonomous build - high-visibility pairing, interviews, or any change you want to stay in control of. Pairs after a plan/spec step.
+description: Drive implementation in bounded, verifiable, defensible increments - one slice per turn, walking-skeleton first, verify-and-narrate, then halt. Use when you want visible, reviewable, senior-looking implementation instead of a monolithic autonomous build - high-visibility pairing, or any change you must defend line by line. Pairs after a plan/spec step. For a ceremony-free fast start (spikes, demos, timed builds), reach for `/skeleton` instead.
 ---
 
 # slice
@@ -10,7 +10,7 @@ Implement in **reviewable units, not deployable units.** One slice, verified, na
 ## Core contract (do not violate)
 
 1. **One slice per invocation.** Never implement the whole plan in a single run.
-2. **First invocation on a fresh task = build the WALKING SKELETON**: the thinnest end-to-end path that actually runs and can be demoed. Not "item 1 of a sequential plan" - the *spine*. (URL shortener: `POST /shorten` -> in-memory store -> `GET /:code` -> 302. Nothing else.)
+2. **First invocation on a fresh task = build the WALKING SKELETON**: the thinnest end-to-end path that actually runs and can be demoed. Not "item 1 of a sequential plan" - the *spine*. (URL shortener: `POST /shorten` -> in-memory store -> `GET /:code` -> 302. Nothing else.) The ceremony-free version of this move is `/skeleton`; slice's first increment builds the same spine but with the full executable check + ledger row, for when the trail matters from line one.
 3. A **slice** = the smallest change that (a) moves the spine forward and (b) can be verified on its own. If proving it takes more than ~1 verify step, it's too big: split it.
 4. **Verify with an executable, pass/fail check - not an eyeball.** Every slice lands with something that *can fail on its own*: a unit test, an assertion, or a script that exits non-zero on mismatch. Run it, show the result. A command that only prints output but can never fail is not verification - and neither is a test that passes because of how you configured its own mock. **Prove it can fail:** break the exact thing the check names, watch it go red, restore. A check you never saw fail is a claim, not a check. Prefer checks that **persist and re-run** so the skeleton stays green as later slices thicken it - a growing regression net, not one-off commands. (Weight scales: a curl that greps for the expected status and exits non-zero otherwise counts; you don't need a full framework for the skeleton.) Claim nothing you did not run.
 5. **Log, then HALT.** Append one row to the decision ledger (see below), then stop. Do not roll into the next slice.
