@@ -46,7 +46,7 @@ plan → attach → (work: slice ⇄ slice-review, ticking with check / dump?) �
 
 The lifecycle skills answer "where does the record live?"; the slice skills answer "how does the work land?" - in bounded, verifiable, defensible increments instead of one monolithic autonomous build.
 
-**`/bdx:skeleton`** is that walking skeleton on its own, ceremony stripped - the thinnest end-to-end path that actually runs, built fast with no ledger, no bd, no per-step review. It's the compressed front-half of `slice` for when a *running thing* is the win and wall-clock matters: spikes, prototypes, demos, timed interviews, or the opening move before you switch to `slice` for rigor. Verify once at the end (it runs), emit a short note, hand off.
+**`/bdx:skeleton`** is that walking skeleton on its own, ceremony stripped - the thinnest end-to-end path that actually runs, built fast with no ledger, no bd, no per-step review. It's the compressed front-half of `slice` for when a *running thing* is the win and wall-clock matters: spikes, prototypes, demos, timed interviews, or the opening move before you switch to `slice` for rigor. Verify once at the end (it runs), emit a short note, hand off. Re-invoke `/bdx:skeleton <next step>` to thicken the spine in the same fast mode - it detects a running spine and never rebuilds it, re-running one end-to-end check per increment as a keep-it-green heartbeat; `new` forces a fresh spine.
 
 **`/bdx:slice`** implements exactly one slice per invocation, then halts. The first slice on a fresh task is always the *walking skeleton* - the thinnest end-to-end path that actually runs - and every slice after that thickens the spine. Each slice ships with an executable pass/fail check (a test, an assertion, a script that exits non-zero), and the agent must prove the check can fail before claiming it passes. One row goes into the plan's decision ledger, then it stops and hands control back to you.
 
@@ -54,7 +54,7 @@ The lifecycle skills answer "where does the record live?"; the slice skills answ
 
 **`/bdx:slice-loop`** runs the pair autonomously until a goal is met - "until phase 5-6 complete", "until the plan is done", or a bd-id's remaining checkboxes. A lean parent session spawns worker subagents that each run a quota of slice → slice-review iterations and retire fresh (so no worker degrades from context exhaustion), with a mechanism-level quality audit at every handoff. You give up the per-slice approval gate; you keep the full audit trail - ticked plan boxes, decision-ledger rows, per-slice bd comments. It halts back to the human when boxes hide design decisions rather than execution.
 
-The trade: `slice` keeps your judgment visible between increments (pairing, high-visibility changes, anything you want to stay in control of); `slice-loop` is for when the design is settled and what's left is execution.
+The trade is a ceremony dial, not a binary. `skeleton` is the fast end - a running spine now, checks you can show, zero durable trail - for spikes, demos, and timed builds where nobody will read an audit trail. `slice` keeps your judgment visible between increments and writes the full trail (pairing, high-visibility or high-blast-radius changes, anything you must defend line by line). `slice-loop` runs that same rigor autonomously once the design is settled and what's left is execution. Same spine-first instinct throughout - you're only dialing how much ceremony the stakes justify.
 
 ## Skills (`/bdx:<name>`)
 

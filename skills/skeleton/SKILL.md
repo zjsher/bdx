@@ -79,16 +79,22 @@ This is the lane for a timed build - interview, demo, spike: land more real beha
 
 If a real tradeoff surfaces mid-skeleton - in the `Next`/`Deferred` lines or an `AskUserQuestion` - frame it as a **plain tradeoff, not the mechanism**: what it costs vs. buys for the product, and define any technical term the first time it appears in one clause. "Chose the throwaway in-memory store so it runs today; loses everything on restart" beats naming the internal. This is the skeleton-specific application of the standing rule in the user's global `~/.claude/CLAUDE.md` ("PRESENT DECISIONS IN PLAIN LANGUAGE").
 
-## Arguments
+## Arguments & mode (build vs thicken)
 
-`$ARGUMENTS` names what to build, or is empty:
+Detect the mode before touching anything - never guess by rebuilding.
 
-- **Names the task/thing** -> build its walking skeleton.
-- **Empty** -> infer the spine from the current context or a plan in scope, state it in one line, then build it.
+- **No runnable spine yet** (greenfield, or nothing built this session) -> build mode. `$ARGUMENTS` names the thing; empty -> infer the spine from context / a plan in scope, state it in one line, then build it.
+- **A runnable spine already exists** (built earlier this session, or the working tree already has the end-to-end path) -> thicken mode. `$ARGUMENTS` names the next increment; build exactly that, re-run the heartbeat check (see "Thickening in fast mode"), no rebuild.
+
+Safety - the one dangerous misread is treating an existing spine as new and clobbering it:
+
+- **Never rebuild a spine that already runs.** Existing spine present -> thicken mode, full stop, unless the user typed `new`.
+- **`new` forces build mode** - `/skeleton new <thing>` starts a fresh spine even if one exists (the only case detection can't infer: a second, unrelated spine).
+- The reverse misread is safe: greenfield read as "thicken" just builds the skeleton anyway - the intended result. So when unsure, default to *not* rebuilding - and if you genuinely can't tell whether existing code is the spine, ask one line before touching it.
 
 ## Composition
 
 - This is the **compressed front-half of `/slice`'s first invocation** - same walking-skeleton philosophy, ceremony stripped for wall-clock.
 - **Hands off to `/slice`** (per-increment rigor + review trail), **`/slice-loop`** (autonomous finish), or nothing. Once the spine runs, those thicken it; this skill only gets it alive.
 - **When to reach for which:** `skeleton` when a _running thing fast_ is the win - spike, prototype, demo, timed interview, or the opening move of any build. `/slice` when _defensibility per increment_ is the win - high-stakes change, review trail needed, someone watching each step. Same spine-first instinct; opposite ceremony budget.
-- Deliberately shares **nothing** with the bd lifecycle or `.claude/self-check.md`. Those belong to the slice flow; adding them back here defeats the purpose. If you want them, you wanted `/slice`.
+- Deliberately shares **nothing** with the bd lifecycle or `.claude/self-check.md` - it neither reads nor writes them. Durability is not skeleton's job: if you want a durable record around a fast build, that is the **lifecycle skills composing around it** - `attach` (or `plan`) to a task, run `/skeleton` inside it, `dump`/`summarize` to write the record when you want it. skeleton stays oblivious to all of it. If instead you want the per-increment *audit trail* baked into the implementation itself, that is `/slice`, not a flag here.

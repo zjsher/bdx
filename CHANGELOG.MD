@@ -1,3 +1,10 @@
+## v0.7.1 (2026-07-17)
+
+### ✨ Features
+- [commits] Added a "fast mode" for Skeleton (based on commit message; no code diff provided to detail implementation)
+
+**Note:** Only a commit message ("Skeleton - fast mode") was provided with no accompanying code diff. Unable to verify specific functions, components, or implementation details without the actual code changes. Please provide the diff for a more accurate and detailed changelog.
+
 ## v0.7.0 (2026-07-17)
 
 ### ⚠️ Insufficient Information
