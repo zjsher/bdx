@@ -1,3 +1,11 @@
+## v0.7.0 (2026-07-17)
+
+### ⚠️ Insufficient Information
+
+- [commits] The only commit available is "91486b3 Skeleton" with no accompanying code diff, making it impossible to determine specific features, fixes, or improvements introduced.
+
+**Note:** To generate an accurate changelog, please provide the actual code diffs associated with this commit. Based solely on the commit message "Skeleton," it's likely this represents initial project scaffolding or boilerplate setup, but no concrete functionality can be confirmed without seeing the actual changes.
+
 ## v0.6.3 (2026-07-17)
 
 ### 🛠️ Improvements

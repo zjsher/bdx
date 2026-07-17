@@ -46,6 +46,8 @@ plan → attach → (work: slice ⇄ slice-review, ticking with check / dump?) �
 
 The lifecycle skills answer "where does the record live?"; the slice skills answer "how does the work land?" - in bounded, verifiable, defensible increments instead of one monolithic autonomous build.
 
+**`/bdx:skeleton`** is that walking skeleton on its own, ceremony stripped - the thinnest end-to-end path that actually runs, built fast with no ledger, no bd, no per-step review. It's the compressed front-half of `slice` for when a *running thing* is the win and wall-clock matters: spikes, prototypes, demos, timed interviews, or the opening move before you switch to `slice` for rigor. Verify once at the end (it runs), emit a short note, hand off.
+
 **`/bdx:slice`** implements exactly one slice per invocation, then halts. The first slice on a fresh task is always the *walking skeleton* - the thinnest end-to-end path that actually runs - and every slice after that thickens the spine. Each slice ships with an executable pass/fail check (a test, an assertion, a script that exits non-zero), and the agent must prove the check can fail before claiming it passes. One row goes into the plan's decision ledger, then it stops and hands control back to you.
 
 **`/bdx:slice-review`** closes the slice with a review that runs exactly one round. Reviewers told to "find what's wrong" manufacture speculative findings rather than report an empty list; slice-review inverts the contract - every finding needs a concrete failure scenario and a CONFIRMED/PLAUSIBLE verdict, an empty findings list is a PASS, only CONFIRMED blocks, PLAUSIBLE goes to the backlog. Optionally borrows a saved persona (`$AGENT_HOME/personas/`) as its lens.
@@ -66,6 +68,7 @@ The trade: `slice` keeps your judgment visible between increments (pairing, high
 
 **Implementation loop** - see [Implementing in slices](#implementing-in-slices):
 
+- `skeleton` - build the thinnest end-to-end running spine fast, zero ceremony, verify once that it runs, hand off. The compressed front-half of `slice`.
 - `slice` - implement one bounded, verifiable increment (walking-skeleton first), verify with an executable check, log to the decision ledger, halt.
 - `slice-review` - review the landed slice in exactly one round under a constrained finding-contract; empty findings = PASS.
 - `slice-loop` - orchestrate slice ⇄ slice-review autonomously via worker subagents until a stated goal is met, with quality audits at every handoff.
