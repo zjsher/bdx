@@ -1,3 +1,11 @@
+## v0.6.3 (2026-07-17)
+
+### 🛠️ Improvements
+- [commits] Added a "fast mode" option, per commit message "Fast mode, simplifications"
+- [commits] Simplified existing code/logic as indicated by the commit message
+
+**Note:** No code diffs were provided—only the commit message "Fast mode, simplifications" was available. This changelog is limited to what can be inferred from that message alone. For a more detailed and accurate changelog, please provide the actual code diffs.
+
 ## v0.6.1 (2026-07-16)
 
 ### 🛠️ Improvements
