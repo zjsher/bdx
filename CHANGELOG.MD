@@ -1,3 +1,10 @@
+## v0.8.0 (2026-07-17)
+
+### 📦 Release
+- [commits] Version bump to v0.8.0
+
+**Note:** No code diffs were provided for these commits, and the commit messages ("release v0.8.0" and "Care") do not contain enough detail to determine specific features, bug fixes, or improvements. Please provide the actual code diffs for a more detailed and accurate changelog.
+
 ## v0.7.5 (2026-07-17)
 
 I'm unable to generate a meaningful changelog from the information provided. The commit message "Care" (6c67391) gives no substantive detail, and no actual code diffs were included in the input for me to analyze.
