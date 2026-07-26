@@ -1,3 +1,11 @@
+## v0.8.1 (2026-07-26)
+
+### ⚠️ Insufficient Information
+
+- No commit message, diff content, or code changes were provided for commit `35e4e42` — unable to determine what was actually changed, added, or fixed.
+
+Please provide the commit message and/or code diff so an accurate changelog can be generated.
+
 ## v0.8.0 (2026-07-17)
 
 ### 📦 Release
