@@ -1,8 +1,8 @@
 ---
 name: quality-audit
-description: Adversarial audit of recent changes for security, performance, and maintainability. Fresh subagents grade the work so the session that implemented it isn't reviewing itself. Default (light) launches one adversarial reviewer; medium launches one reviewer per lens (3-4 agents, no fleet); ultra mode dynamically scales a multi-agent fleet with verification; --inline runs the audit in-session with no subagents at all. Stack-agnostic. Use after implementing features or fixes.
+description: Adversarial audit of recent changes for security, performance, and maintainability. Fresh subagents grade the work so the session that implemented it isn't reviewing itself. Default (light) launches one adversarial reviewer; medium launches one reviewer per lens (3-4 agents, no fleet); ultra mode dynamically scales a multi-agent fleet with verification; --inline runs the audit in-session with no subagents at all. Findings are repro-gated (CONFIRMED requires execution; PLAUSIBLE is advisory), runs are one round per change, and a repo-local ledger keeps repeat audits from refilling with reviewer noise. Stack-agnostic. Use after implementing features or fixes.
 user-invocable: true
-argument-hint: "[light|medium|ultra] [file/directory/scope] [--agents N (ultra only: reviewers per area)] [--inline (no subagents)]"
+argument-hint: "[light|medium|ultra] [file/directory/scope] [--agents N (ultra only: reviewers per area)] [--inline (no subagents)] [--fresh (ignore ledger)]"
 ---
 
 You are the **orchestrator** of an adversarial quality audit. In every mode except `--inline`, you do NOT audit the code yourself — you scope the work, dispatch fresh adversarial reviewer agent(s), and report the results.
@@ -24,6 +24,8 @@ Parse `$ARGUMENTS` for a mode keyword first:
 
 `--inline` is mutually exclusive with `medium` and `ultra` (any multi-agent mode is the opposite of inline) and makes `--agents` meaningless. `--agents` is ignored in medium mode — the agent count there is fixed at one per lens; say so if it was passed. If both a mode keyword and `--inline` are present, say plainly that they conflict, honor `--inline` (the explicit flag beats the keyword), and note it in the report.
 
+`--fresh` (any mode) ignores the ledger for this run: no delta scoping, no dedup against past findings — audit the full scope as if it were the first run. The ledger is still appended to afterward.
+
 Remaining arguments are an optional file/directory/scope filter.
 
 ## Step 0: Establish scope and ground rules (all modes)
@@ -42,9 +44,41 @@ These govern what you hand a reviewer. `--inline` has no reviewer to hand anythi
 
 Every reviewer prompt must include, verbatim:
 
-1. The framing: *"You are a hostile senior reviewer. Assume this code was written carelessly and your job is to find what's wrong with it. You get no credit for saying it looks fine; you get credit for real defects with evidence. Read the actual code — not just the diff — before judging. First read any CLAUDE.md / AGENTS.md / CONTRIBUTING.md at the paths given and treat explicit project-convention violations as findings. Identify the stack and the project's established auth/data-access patterns from the code itself; flag changed code that deviates from how the rest of the codebase does it."*
+1. The framing: *"You are a hostile senior reviewer. Assume this code was written carelessly and your job is to find what's wrong with it. You get no credit for volume; you get credit for real defects with proof, and a genuinely empty list after reading everything is a creditable pass — not a failure to do your job. Read the actual code — not just the diff — before judging. You may run commands (tests, type-checks, small scripts) to demonstrate a defect: a defect you demonstrated by execution is CONFIRMED; one you can only argue from reading is PLAUSIBLE, no matter how convincing the argument. First read any CLAUDE.md / AGENTS.md / CONTRIBUTING.md at the paths given and treat explicit project-convention violations as findings. Identify the stack and the project's established auth/data-access patterns from the code itself; flag changed code that deviates from how the rest of the codebase does it."*
 2. The relevant checklist(s) (from the **Checklists** section below — copy them into the prompt; subagents cannot see this skill file).
-3. The output contract: *"Return raw findings as a JSON-style list, one entry per finding: `{severity: CRITICAL|WARNING|SUGGESTION, file, line, issue, evidence (the exact code that demonstrates it), suggested_fix}`. Return an empty list if you genuinely found nothing after reading every file. Do not pad with speculative or stylistic filler to appear thorough."*
+3. The output contract: *"Return raw findings as a JSON-style list, one entry per finding: `{severity: CRITICAL|WARNING|SUGGESTION, verdict: CONFIRMED|PLAUSIBLE, file, line, issue, evidence (the exact code that demonstrates it), repro (CONFIRMED only: the command you ran and its actual output), suggested_fix}`. CONFIRMED requires that you actually executed something demonstrating the defect; suspicion from reading, however strong, is PLAUSIBLE. Return an empty list if you genuinely found nothing after reading every file — an empty list is a pass. Do not pad with speculative or stylistic filler to appear thorough."*
+
+## Finding contract (all modes)
+
+Every finding carries a **verdict** alongside its severity, and the two are orthogonal:
+
+- **CONFIRMED** — the reviewer (or, in ultra, a verifier) *executed something* against the current code that demonstrates the defect: a failing test, a script, a type-check, a command whose real output shows the wrong behavior. The repro (command + output) ships with the finding.
+- **PLAUSIBLE** — everything else, including well-argued suspicions from reading the code. Trace-only reasoning is PLAUSIBLE no matter how convincing and no matter the severity. A PLAUSIBLE CRITICAL still tops the report — it just isn't proven.
+
+Why the gate exists: an adversarial reviewer pays no cost for a false positive, so prose findings with code excerpts are free to generate in bulk. A repro that actually runs is not. Gating on execution is what keeps a fleet from returning 40 items because it was tasked to return items.
+
+Two consequences, stated so they stick:
+
+- **An empty findings list is a creditable pass.** Every reviewer prompt says so, and the orchestrator accepts it without re-rolling or dispatching more agents to "double-check".
+- **Only CONFIRMED findings justify an immediate fix.** PLAUSIBLE findings are advisory: they appear in the report for the user to triage, and they must not trigger a fix → re-audit cycle on their own. A loop that terminates "when the review comes back clean" terminates by exhaustion, not correctness, and this skill refuses to power it.
+
+**One round per change.** An audit runs exactly once over a given diff. Re-auditing the same unchanged code is not added scrutiny — it's a fresh draw from the reviewers' noise distribution and will manufacture findings. The legitimate trigger for the next audit is the next change, scoped to that change (see Ledger).
+
+## Ledger (repeat runs)
+
+The ledger gives repeat audits memory so run #3 on the same code structurally cannot refill with re-generated findings. It is self-contained — a file, no issue tracker or external tool involved — and everything it suppresses is still visible in the report.
+
+**Location:** `<git-dir>/quality-audit-ledger.jsonl` where `<git-dir>` is `git rev-parse --git-dir` (i.e. inside `.git/` — repo-local, untracked, survives sessions, invisible to the working tree). Not a git repo → no ledger; skip this section silently.
+
+**Step 0 addition:** read the ledger if it exists (unless `--fresh`). Note the last run's recorded state: commit and whether the working tree was dirty.
+
+**Delta scoping:** if the last run recorded a commit and the code has changed since, scope this audit to `git diff <last-audited-commit>...HEAD` plus current working-tree changes — the delta since the last audit, not the whole original diff re-read. If the current state is *identical* to the last audited state, say so, point at the prior run's findings, and stop — offer `--fresh` if the user genuinely wants a re-roll, but name it as one.
+
+**Dedup at merge (orchestrator-side only):** a raw finding that matches a ledger entry by (file, issue essence) on code unchanged since that entry is suppressed from the main report and listed in one line under "Previously raised". This includes entries whose outcome was REFUTED — deduping against refuted findings is what makes the loop converge; skip that and judge-rejected findings reappear every round forever.
+
+**Append after Report:** one JSON line per finding — `{ts, mode, commit, dirty, file, line, severity, verdict, issue, outcome}` where outcome is `reported`, `refuted`, or `suppressed` — plus one run-summary line recording the audited state and scope. Append-only; never rewrite history.
+
+Context hygiene still applies: the ledger is orchestrator memory. Reviewers never see it — handing a reviewer the list of past findings is exactly the "hint at expected findings" contamination the hygiene rules forbid. Dedup happens after findings come back, not before they're formed.
 
 ---
 
@@ -110,10 +144,11 @@ An explicit `--agents N` overrides this in both directions and applies to every 
 
 Deduplicate the raw findings across reviewers by (file, line-range, issue). Merging duplicates is mechanical — that's yours. Judging validity is not.
 
-For each unique CRITICAL or WARNING finding, dispatch a fresh **verifier agent** (parallel batch) whose prompt is: *"Attempt to refute this finding: [finding with evidence]. Read the actual code at [file]. It is only confirmed if the defect is real, reachable, and the evidence holds. Preexisting-code issues outside the diff are noted as such, not attributed to this change. Return CONFIRMED or REFUTED with one sentence of justification."*
+For each unique CRITICAL or WARNING finding, dispatch a fresh **verifier agent** (parallel batch) whose prompt is: *"Attempt to refute this finding: [finding with evidence]. Read the actual code at [file]. Prefer execution: if a command (test, script, type-check) can settle it either way, run it and include the command and output. It only stands if the defect is real, reachable, and the evidence holds. Preexisting-code issues outside the diff are noted as such, not attributed to this change. Return UPHELD or REFUTED with one sentence of justification, plus any repro you ran."*
 
-- A finding two independent reviewers both raised may skip verification (independent agreement is the signal).
-- Drop REFUTED findings from the report (list them in one line at the end as "raised but refuted", so the process is transparent).
+- A finding two independent reviewers both raised may skip verification (independent agreement is the signal) — but it stays PLAUSIBLE unless someone executed a repro.
+- An UPHELD finding whose verifier (or original reviewer) ran a repro is CONFIRMED; UPHELD without execution stays PLAUSIBLE. Verification filters noise — it does not mint proof.
+- Drop REFUTED findings from the report (list them in one line at the end as "raised but refuted", so the process is transparent) and record them in the ledger — that's what stops them from being re-raised next run.
 - SUGGESTIONs pass through unverified but clearly labeled.
 
 ---
@@ -138,8 +173,8 @@ No subagents. You read the code and produce the findings yourself, in this sessi
 2. Read the convention files (`CLAUDE.md` / `AGENTS.md` / `CONTRIBUTING.md`) yourself, in full. Do not rely on what you remember of them from earlier in the session. Treat explicit violations as findings.
 3. Read every changed file in full — the actual code, not just the diff hunks. This is the step you will be most tempted to skip and the one that carries the mode.
 4. Apply ALL checklists (security + performance + correctness & maintainability, plus frontend if frontend files are in scope). Work **security-first**, for the same reason light mode does: it's the checklist that degrades first when one reader carries everything.
-5. Turn the framing on yourself, verbatim: *"Assume this code was written carelessly. You get no credit for saying it looks fine; you get credit for real defects with evidence."* If you catch yourself writing "this is fine because I intended X" — that's not evidence, that's the bias the rest of this skill was built to route around. Cut it.
-6. Findings use the same output contract: severity, file, line, issue, evidence (the exact code), suggested fix. An empty list is a legitimate result. Do not pad with stylistic filler to look thorough.
+5. Turn the framing on yourself, verbatim: *"Assume this code was written carelessly. You get no credit for volume; you get credit for real defects with proof, and a genuinely empty list after reading everything is a creditable pass."* If you catch yourself writing "this is fine because I intended X" — that's not evidence, that's the bias the rest of this skill was built to route around. Cut it.
+6. Findings use the same output contract: severity, verdict, file, line, issue, evidence (the exact code), repro for CONFIRMED, suggested fix. Earn CONFIRMED the same way a subagent would — by actually running something. Your memory of what the code is supposed to do is not evidence in either direction. An empty list is a legitimate result. Do not pad with stylistic filler to look thorough.
 
 No partitioning, no dedup, no verification fan-out — there's one reader and it's you.
 
@@ -149,11 +184,18 @@ Then go to **Report**.
 
 ## Report (orchestrator, all modes)
 
-**In `--inline` mode, open the report with this line, before any findings:** *"Inline audit: no subagents. Reviewed in-session, so this does not carry the clean-context guarantee — findings are real, but absence of findings is weaker evidence than a light/ultra run."* If this session also wrote the diff, say that in the same line. The user needs to know which product they're holding.
+**In `--inline` mode, open the report with this line, before any findings:** *"Inline audit: no subagents. Reviewed in-session, so this does not carry the clean-context guarantee — findings are real, but absence of findings is weaker evidence than a light/medium/ultra run."* If this session also wrote the diff, say that in the same line. The user needs to know which product they're holding.
 
-Report findings, CRITICAL first, then WARNING, then SUGGESTION:
+Group findings by verdict first, then by severity (CRITICAL, WARNING, SUGGESTION) within each group:
+
+1. **CONFIRMED** — the act-now list. Each entry ships with its repro (command + output).
+2. **PLAUSIBLE (advisory)** — open this group with: *"Not proven by execution — these are for triage. Do not start a fix/re-audit cycle on this group wholesale."*
+3. **Previously raised** — one line listing ledger-suppressed findings, if any, so nothing silently disappears.
+
+Each finding:
 
 - **Severity**: CRITICAL / WARNING / SUGGESTION
+- **Verdict**: CONFIRMED (with repro) / PLAUSIBLE
 - **File & Line**: exact location
 - **Issue**: what's wrong
 - **Fix**: specific code change to resolve it
@@ -164,6 +206,8 @@ If everything passes, say so, and summarize the coverage: in light mode, the fil
 Do not editorialize about findings ("this one is probably fine because…"). In light and ultra that's because you don't get a vote. In inline you do get the vote, which makes it worse: talking yourself out of a finding you already surfaced is the exact failure this skill exists to prevent, and there's no verifier agent to catch you doing it. Report it and let the user decide.
 
 Do not apply fixes — this skill reports; the user decides what to act on.
+
+After the report, append this run to the ledger (see **Ledger**). If the user fixes CONFIRMED findings and asks for a follow-up audit, the ledger's delta scoping means that follow-up reads only the fix diff. That is the intended shape of the loop: audit → fix → audit *the fixes* — converging — never audit → re-audit everything until it comes back clean.
 
 ---
 

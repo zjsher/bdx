@@ -1,3 +1,12 @@
+## v0.8.3 (2026-07-27)
+
+### 🛠️ Improvements
+- [commits] Set quality-audit to use "medium" mode instead of previous default
+
+### 📦 Release
+- [commits] Bumped release version to v0.8.3
+- [commits] Bumped release version to v0.8.2
+
 ## v0.8.2 (2026-07-27)
 
 ### 🛠️ Improvements
