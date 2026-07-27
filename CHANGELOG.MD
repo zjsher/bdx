@@ -1,6 +1,14 @@
 ## v0.8.3 (2026-07-27)
 
 ### 🛠️ Improvements
+- [commits] Added a change referred to as "anti-treadmill" (commit 78c4e1c) — no code diff was provided, so the specific implementation details cannot be confirmed
+- [commits] Version bumped to v0.8.3 as part of the release commit (6688456)
+
+**Note:** Only commit messages were provided for this changelog, without accompanying code diffs. The description above reflects the limited information available (commit titles only) and should be verified against the actual code changes for accuracy.
+
+## v0.8.3 (2026-07-27)
+
+### 🛠️ Improvements
 - [commits] Set quality-audit to use "medium" mode instead of previous default
 
 ### 📦 Release
