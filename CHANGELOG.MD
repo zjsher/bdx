@@ -1,3 +1,14 @@
+## v0.8.2 (2026-07-26)
+
+## v0.8.2
+
+Insufficient information available to generate a detailed changelog. The commit history provided only includes a version bump (`a9ca494 release v0.8.2`) and an unlabeled commit (`35e4e42 ...`) with no accompanying code diffs or descriptive messages.
+
+### 📝 Notes
+- [commits] Version bumped to v0.8.2, but no code diffs or descriptive commit messages were provided to determine specific changes.
+
+*Please provide the code diffs or more detailed commit messages for a complete changelog.*
+
 ## v0.8.1 (2026-07-26)
 
 ### ⚠️ Insufficient Information

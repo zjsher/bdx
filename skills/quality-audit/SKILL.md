@@ -1,8 +1,8 @@
 ---
 name: quality-audit
-description: Adversarial audit of recent changes for security, performance, and maintainability. Fresh subagents grade the work so the session that implemented it isn't reviewing itself. Default (light) launches one adversarial reviewer; ultra mode dynamically scales a multi-agent fleet with verification; --inline runs the audit in-session with no subagents at all. Stack-agnostic. Use after implementing features or fixes.
+description: Adversarial audit of recent changes for security, performance, and maintainability. Fresh subagents grade the work so the session that implemented it isn't reviewing itself. Default (light) launches one adversarial reviewer; medium launches one reviewer per lens (3-4 agents, no fleet); ultra mode dynamically scales a multi-agent fleet with verification; --inline runs the audit in-session with no subagents at all. Stack-agnostic. Use after implementing features or fixes.
 user-invocable: true
-argument-hint: "[ultra] [file/directory/scope] [--agents N (ultra only: reviewers per area)] [--inline (no subagents)]"
+argument-hint: "[light|medium|ultra] [file/directory/scope] [--agents N (ultra only: reviewers per area)] [--inline (no subagents)]"
 ---
 
 You are the **orchestrator** of an adversarial quality audit. In every mode except `--inline`, you do NOT audit the code yourself — you scope the work, dispatch fresh adversarial reviewer agent(s), and report the results.
@@ -17,11 +17,12 @@ If a project-specific `quality-audit` skill exists in the current repo, prefer t
 
 Parse `$ARGUMENTS` for a mode keyword first:
 
-- **light** (default — used when no mode keyword is present): ONE adversarial reviewer agent carrying the full merged checklist. Fast, cheap, still context-clean. Right for routine post-implementation checks.
+- **light** (keyword `light`; the default when no mode keyword is present): ONE adversarial reviewer agent carrying the full merged checklist. Fast, cheap, still context-clean. Right for routine post-implementation checks.
+- **medium** (keyword `medium` or `--medium`): one reviewer per lens over the entire scoped diff — security, performance, correctness & maintainability, plus frontend when frontend files changed. 3–4 agents total, no area partitioning, no verification fan-out. Right for mid-size diffs where light's single merged reader would dilute the lenses but an ultra fleet is overkill.
 - **ultra** (keyword `ultra` or `--ultra`): dynamically scaled multi-agent fleet — the diff is partitioned into areas, each area gets multiple lens-specialized reviewers sized to the diff, and CRITICAL/WARNING findings get adversarial verification. Right for large, risky, or security-sensitive changes. `--agents N` (minimum 2) overrides the per-area reviewer count and is only meaningful in ultra mode.
 - **inline** (flag `--inline`): NO subagents. You run the whole audit yourself in this session against the merged checklist. Forfeits the context-clean guarantee the rest of this skill exists to provide, so the report must say so.
 
-`--inline` is mutually exclusive with `ultra` (a fleet is the opposite of inline) and makes `--agents` meaningless. If both a mode keyword and `--inline` are present, say plainly that they conflict, honor `--inline` (the explicit flag beats the keyword), and note it in the report.
+`--inline` is mutually exclusive with `medium` and `ultra` (any multi-agent mode is the opposite of inline) and makes `--agents` meaningless. `--agents` is ignored in medium mode — the agent count there is fixed at one per lens; say so if it was passed. If both a mode keyword and `--inline` are present, say plainly that they conflict, honor `--inline` (the explicit flag beats the keyword), and note it in the report.
 
 Remaining arguments are an optional file/directory/scope filter.
 
@@ -29,9 +30,9 @@ Remaining arguments are an optional file/directory/scope filter.
 
 1. Run `git diff` and `git diff --staged` (plus `git diff <base>...HEAD` if the changes are committed on a branch) to get the authoritative list of changed files and hunks. Do not rely on your memory of what you edited. Also run `git diff --stat` (same variants) — you need per-file changed-line counts to size the audit.
 2. Apply the scope filter from `$ARGUMENTS` if one was given.
-3. Locate the project's convention sources: `CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md` — note their paths. In light and ultra, point reviewers at these files rather than summarizing them (your summary would carry your bias about which rules matter). In inline, read them yourself, in full.
+3. Locate the project's convention sources: `CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md` — note their paths. In light, medium, and ultra, point reviewers at these files rather than summarizing them (your summary would carry your bias about which rules matter). In inline, read them yourself, in full.
 
-## Context hygiene rules (light and ultra — these are the point of the skill)
+## Context hygiene rules (light, medium, and ultra — these are the point of the skill)
 
 These govern what you hand a reviewer. `--inline` has no reviewer to hand anything to, so they don't apply — which is exactly what it costs you. Inline still reuses the framing and output contract below, addressed to yourself.
 
@@ -53,7 +54,30 @@ Dispatch **exactly one** reviewer agent covering the entire scoped diff. Its pro
 
 No verification fan-out and no partitioning: the single agent's findings pass straight to the report. If the reviewer returns a finding you have strong mechanical evidence against (e.g. it cites a line that doesn't exist), note that in the report rather than silently dropping it — you still don't get a vote on judgment calls.
 
-If the diff is very large (roughly 800+ changed lines or 15+ files), say so and recommend re-running with `ultra` — but still run the single agent unless the user objects; light mode is the contract they invoked.
+If the diff is sizeable (roughly 300+ changed lines or 8+ files), say so and recommend re-running with `medium`; if it's very large (roughly 800+ changed lines or 15+ files) or touches auth/tenancy/money/deletion, recommend `ultra`. Either way, still run the single agent unless the user objects; light mode is the contract they invoked.
+
+Then go to **Report**.
+
+---
+
+## Medium mode
+
+One reviewer per lens, whole diff each. No partitioning into areas, no verification fan-out — the scaling knob between light and ultra is lens separation, not agent count per area.
+
+### Dispatch (subagents)
+
+Launch the lens reviewers **in parallel, in a single batch of Agent tool calls**:
+
+- **Security** — always its own reviewer, never merged (same reasoning as ultra: attacker mindset dilutes first).
+- **Performance**
+- **Correctness & maintainability**
+- **Frontend** — only if frontend files are in scope; otherwise skip it (3 agents, not 4).
+
+Each reviewer gets the framing, the output contract, its own lens checklist, and the **entire scoped diff** — every reviewer reads everything through its one lens. If the scoped diff is too large for a single reviewer to plausibly read in full (roughly 800+ changed lines or 15+ files), say so and recommend `ultra` — partitioning is exactly the machinery medium omits — but still run unless the user objects.
+
+### Merge (orchestrator)
+
+Deduplicate findings across lenses by (file, line-range, issue) — mechanical, so it's yours. When two lenses independently raised the same finding, keep one entry and mark it dual-reported; independent agreement is a confidence signal the report should surface. No verifier agents: findings pass straight to the report, same as light. As in light mode, if a finding is mechanically impossible (cites a line that doesn't exist), note that rather than silently dropping it.
 
 Then go to **Report**.
 
@@ -133,9 +157,9 @@ Report findings, CRITICAL first, then WARNING, then SUGGESTION:
 - **File & Line**: exact location
 - **Issue**: what's wrong
 - **Fix**: specific code change to resolve it
-- **Provenance**: which lens(es) found it; in ultra mode, whether it was verified or dual-reported; in inline mode, omit (there's one reader)
+- **Provenance**: which lens(es) found it; in medium mode, whether it was dual-reported across lenses; in ultra mode, whether it was verified or dual-reported; in inline mode, omit (there's one reader)
 
-If everything passes, say so, and summarize the coverage: in light mode, the file list and that a single merged-checklist reviewer read it; in ultra mode, the partition (areas, files, reviewers per area, lenses used); in inline mode, the file list and which checklists you carried.
+If everything passes, say so, and summarize the coverage: in light mode, the file list and that a single merged-checklist reviewer read it; in medium mode, the file list and which lens reviewers ran (3 or 4); in ultra mode, the partition (areas, files, reviewers per area, lenses used); in inline mode, the file list and which checklists you carried.
 
 Do not editorialize about findings ("this one is probably fine because…"). In light and ultra that's because you don't get a vote. In inline you do get the vote, which makes it worse: talking yourself out of a finding you already surfaced is the exact failure this skill exists to prevent, and there's no verifier agent to catch you doing it. Report it and let the user decide.
 
