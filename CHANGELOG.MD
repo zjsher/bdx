@@ -1,6 +1,16 @@
 ## v0.8.3 (2026-07-27)
 
 ### 🛠️ Improvements
+- [commits] Two updates labeled "anti-treadmill" were made, though no code diffs were provided to detail the specific changes
+
+### 📦 Release
+- [commits] Version v0.8.3 released
+
+**Note:** No code diffs were included for the "anti-treadmill" commits, so the specific functionality or fixes cannot be detailed beyond the commit messages provided.
+
+## v0.8.3 (2026-07-27)
+
+### 🛠️ Improvements
 - [commits] Added a change referred to as "anti-treadmill" (commit 78c4e1c) — no code diff was provided, so the specific implementation details cannot be confirmed
 - [commits] Version bumped to v0.8.3 as part of the release commit (6688456)
 
