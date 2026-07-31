@@ -1,6 +1,7 @@
 ---
 name: plan
-description: Open a new bd task with a paired plan file at $AGENT_HOME/plan/. Use for non-trivial work that warrants a written-down approach (multi-step, cross-cutting, or you'll need to re-enter cold). Skip for one-line fixes (just `bd create` + a body) or when the bd already exists (use scope instead). Predecessor: triage (or none, for fresh ideas). Successor: attach.
+description: >-
+  Open a new bd task with a paired plan file at $AGENT_HOME/plan/. Use for non-trivial work that warrants a written-down approach (multi-step, cross-cutting, or you'll need to re-enter cold). Skip for one-line fixes (just `bd create` + a body) or when the bd already exists (use scope instead). Predecessor: triage (or none, for fresh ideas). Successor: attach.
 user-invocable: true
 argument-hint: optional-title-or-slug
 ---

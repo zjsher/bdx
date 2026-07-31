@@ -1,6 +1,7 @@
 ---
 name: scope
-description: Retrofit an existing unscoped bd issue with a project label and a paired plan file. Use when a bd was created bare (phone capture, direct `bd create`, or as part of triage) and now needs to enter the plan/attach lifecycle. Skip if the bd already has a plan file (the plan is authoritative — edit it directly) or if you're starting fresh work without an existing bd (use plan instead). Predecessor: triage (or a manual `bd create`). Successor: attach.
+description: >-
+  Retrofit an existing unscoped bd issue with a project label and a paired plan file. Use when a bd was created bare (phone capture, direct `bd create`, or as part of triage) and now needs to enter the plan/attach lifecycle. Skip if the bd already has a plan file (the plan is authoritative — edit it directly) or if you're starting fresh work without an existing bd (use plan instead). Predecessor: triage (or a manual `bd create`). Successor: attach.
 user-invocable: true
 argument-hint: bd-id
 ---

@@ -24,6 +24,12 @@ Then install the Claude Code plugin:
 claude plugin marketplace add zeejers/bdx && claude plugin install bdx@bdx-marketplace
 ```
 
+Or install the Codex plugin:
+
+```bash
+codex plugin marketplace add zeejers/bdx && codex plugin add bdx@bdx-marketplace
+```
+
 ## Usage
 
 Happy path:

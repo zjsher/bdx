@@ -1,3 +1,11 @@
+## v0.8.5 (2026-07-30)
+
+### 🛠️ Improvements
+- [commits] Updated quality audit logic to include a materiality bar for filtering or prioritizing findings
+- [commits] Added credits to the quality audit output/feature
+
+*Note: No code diffs were provided, so this changelog is based solely on the commit message. Limited detail is available on the specific implementation.*
+
 ## v0.8.3 (2026-07-27)
 
 ### 🛠️ Improvements

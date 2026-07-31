@@ -1,8 +1,9 @@
 ---
 name: slice-review
-description: Review a slice that /slice just landed under a constrained finding-contract - CONFIRMED requires an executable repro run against the current code (trace-only suspicion is PLAUSIBLE), one bounded mutation probe checks the slice's net can actually go red, an empty findings list is a PASS, only CONFIRMED blocks, PLAUSIBLE goes to the backlog, and the review runs exactly one round. Optionally borrows a saved persona as its lens. Use to close a slice without the review-until-clean loop that terminates by exhaustion instead of correctness.
+description: >-
+  Review a slice that /slice just landed under a constrained finding-contract - CONFIRMED requires an executable repro run against the current code (trace-only suspicion is PLAUSIBLE), one bounded mutation probe checks the slice's net can actually go red, an empty findings list is a PASS, only CONFIRMED blocks, PLAUSIBLE goes to the backlog, and the review runs exactly one round. Optionally borrows a saved persona as its lens. Use to close a slice without the review-until-clean loop that terminates by exhaustion instead of correctness.
 user-invocable: true
-argument-hint: [persona-slug] [target: diff|staged|HEAD|bd-id|path]
+argument-hint: '[persona-slug] [target: diff|staged|HEAD|bd-id|path]'
 ---
 
 # slice-review

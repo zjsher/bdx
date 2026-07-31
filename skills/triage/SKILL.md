@@ -1,6 +1,7 @@
 ---
 name: triage
-description: Drain the inbox and unscoped bd queues — for each item, decide whether to merge into an existing task or seed a new one (via plan or scope). Use periodically (start of day, between tasks, when the inbox is piling up) to clear capture into structured state. Skip for one-off conversions of a single item (use scope on the bd-id, or plan to convert one inbox note manually). Triage never starts execution — output is always tasks ready for a later attach. Predecessor: phone capture / `bd create` shorthand. Successor: plan or scope.
+description: >-
+  Drain the inbox and unscoped bd queues — for each item, decide whether to merge into an existing task or seed a new one (via plan or scope). Use periodically (start of day, between tasks, when the inbox is piling up) to clear capture into structured state. Skip for one-off conversions of a single item (use scope on the bd-id, or plan to convert one inbox note manually). Triage never starts execution — output is always tasks ready for a later attach. Predecessor: phone capture / `bd create` shorthand. Successor: plan or scope.
 user-invocable: true
 argument-hint: "optional — 'inbox' | 'bd' | <filename> | <bd-id>"
 ---

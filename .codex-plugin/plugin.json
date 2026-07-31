@@ -1,0 +1,35 @@
+{
+  "name": "bdx",
+  "version": "0.8.6",
+  "description": "Beads workflow skills and hooks for durable task planning, implementation, review, handoff, and closure.",
+  "author": {
+    "name": "Zach Sherbondy",
+    "url": "https://github.com/zeejers"
+  },
+  "homepage": "https://github.com/zeejers/bdx#readme",
+  "repository": "https://github.com/zeejers/bdx",
+  "keywords": [
+    "beads",
+    "workflow",
+    "task-management",
+    "coding-agents"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "bdx",
+    "shortDescription": "Durable Beads workflows for coding agents",
+    "longDescription": "Plan, attach, implement, review, summarize, and close Beads tasks with durable artifacts and lifecycle guardrails.",
+    "developerName": "Zach Sherbondy",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/zeejers/bdx",
+    "defaultPrompt": [
+      "Plan this work as a durable Beads task.",
+      "Attach this session to an existing Beads task.",
+      "Implement the next reviewed slice of this task."
+    ]
+  }
+}

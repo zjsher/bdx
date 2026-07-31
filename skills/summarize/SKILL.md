@@ -1,6 +1,7 @@
 ---
 name: summarize
-description: Write the durable post-implementation record to $AGENT_HOME/summary/ and back-link to the bd issue. Persona reviews are opt-in via --personas. Use when a task's work is done and ready to be remembered — even if the bd isn't being closed yet (follow-ups can keep the bd open). Skip mid-flight (use dump for fearlessly-log-out snapshots) or for trivial fixes where a `bd close -r` is the whole record. Predecessor: attach + a finished work session. Successor: close (which auto-runs summarize if missing).
+description: >-
+  Write the durable post-implementation record to $AGENT_HOME/summary/ and back-link to the bd issue. Persona reviews are opt-in via --personas. Use when a task's work is done and ready to be remembered — even if the bd isn't being closed yet (follow-ups can keep the bd open). Skip mid-flight (use dump for fearlessly-log-out snapshots) or for trivial fixes where a `bd close -r` is the whole record. Predecessor: attach + a finished work session. Successor: close (which auto-runs summarize if missing).
 user-invocable: true
 argument-hint: "[--personas] [--deep] [optional-focus-or-filename]"
 model: sonnet

@@ -1,6 +1,7 @@
 ---
 name: close
-description: Finalize a bd task — ensure a summary exists (auto-running summarize if not), then `bd close` with a one-line resolution. Accepts summarize's --personas / --deep flags and passes them through. Use when the work is actually done and you're ready to retire the issue from the active queue. Skip if there's still real follow-up work — keep the bd open. Predecessor: summarize (close runs it implicitly if missing). Successor: terminal — close ends the lifecycle.
+description: >-
+  Finalize a bd task — ensure a summary exists (auto-running summarize if not), then `bd close` with a one-line resolution. Accepts summarize's --personas / --deep flags and passes them through. Use when the work is actually done and you're ready to retire the issue from the active queue. Skip if there's still real follow-up work — keep the bd open. Predecessor: summarize (close runs it implicitly if missing). Successor: terminal — close ends the lifecycle.
 user-invocable: true
 argument-hint: "bd-id [--personas] [--deep] [and/or resolution message]"
 model: sonnet

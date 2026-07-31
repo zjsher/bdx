@@ -1,6 +1,7 @@
 ---
 name: attach
-description: Resume an existing bd-tracked task: load its plan + prior contexts/summaries, append the current session UUID to the plan's `sessions:`, and flip bd status to in_progress. Use at the start of a session that's continuing prior work — especially if the prior session was dumped/closed cold and you need state loaded fresh. Skip for ad-hoc bd updates (a bare `bd update --status in_progress` is enough) or for starting brand-new work (use plan instead). Predecessor: plan or scope. Successor: dump (mid-session save) or summarize (when work ships).
+description: >-
+  Resume an existing bd-tracked task: load its plan + prior contexts/summaries, append the current session UUID to the plan's `sessions:`, and flip bd status to in_progress. Use at the start of a session that's continuing prior work — especially if the prior session was dumped/closed cold and you need state loaded fresh. Skip for ad-hoc bd updates (a bare `bd update --status in_progress` is enough) or for starting brand-new work (use plan instead). Predecessor: plan or scope. Successor: dump (mid-session save) or summarize (when work ships).
 user-invocable: true
 argument-hint: bd-id
 ---
