@@ -9,9 +9,10 @@ help:
 	@echo "  make patch                  # bump x.y.Z+1"
 	@echo "  make minor                  # bump x.Y+1.0"
 	@echo "  make major                  # bump X+1.0.0"
+	@echo "  make release                # print current version"
 	@echo "  make release VERSION=1.2.3  # set exact version"
 	@echo ""
-	@echo "Each target: bumps all .claude-plugin/plugin.json versions, runs"
+	@echo "Each target: bumps Claude + Codex plugin.json versions in lockstep, runs"
 	@echo "  git add . && lazy-changelog --prepend CHANGELOG.md"
 	@echo "Then review + commit + tag + push manually."
 	@echo ""
@@ -24,8 +25,11 @@ patch minor major:
 	@./dev/release.sh $@
 
 release:
-	@test -n "$(VERSION)" || (echo "usage: make release VERSION=x.y.z" >&2; exit 2)
-	@./dev/release.sh set $(VERSION)
+	@if [ -n "$(VERSION)" ]; then \
+		./dev/release.sh set "$(VERSION)"; \
+	else \
+		./dev/release.sh current; \
+	fi
 
 # Run the installer end-to-end inside a throwaway Linux container. Skips
 # dolt because its installer wants sudo and dolt isn't load-bearing for

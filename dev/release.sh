@@ -2,13 +2,15 @@
 # release.sh — bump plugin version, stage changes, regenerate changelog.
 #
 # Usage:
+#   ./scripts/release.sh current
 #   ./scripts/release.sh patch|minor|major
 #   ./scripts/release.sh set <version>
 #
-# Finds every plugin.json under .claude-plugin/ (supports multi-plugin repos),
-# bumps each version field consistently, stages all changes with `git add .`,
-# then runs `lazy-changelog --prepend CHANGELOG.md`. Commit + tag + push is
-# left to the caller so you can review the changelog first.
+# Finds every Claude and Codex plugin.json (supports multi-plugin repos),
+# verifies their versions are in lockstep, bumps each version consistently,
+# stages all changes with `git add .`, then runs
+# `lazy-changelog --prepend CHANGELOG.md`. Commit + tag + push is left to the
+# caller so you can review the changelog first.
 
 set -euo pipefail
 
@@ -16,28 +18,62 @@ MODE="${1:-}"
 TARGET="${2:-}"
 
 case "$MODE" in
-  patch|minor|major|set) ;;
-  *) echo "usage: $0 patch|minor|major|set <version>" >&2; exit 2 ;;
+  current|patch|minor|major|set) ;;
+  *) echo "usage: $0 current|patch|minor|major|set <version>" >&2; exit 2 ;;
 esac
 
 if [ "$MODE" = "set" ] && [ -z "$TARGET" ]; then
   echo "error: 'set' requires a version argument" >&2; exit 2
 fi
 
-# Locate plugin manifests (one per plugin in a multi-plugin repo).
+# Locate Claude and Codex plugin manifests (one per plugin in a multi-plugin
+# repo). Both roots are required so a release cannot silently update only one
+# plugin format.
 # Using while-read instead of mapfile for bash 3.2 compat (macOS default).
 MANIFESTS=()
-while IFS= read -r line; do
-  MANIFESTS+=("$line")
-done < <(find .claude-plugin -maxdepth 2 -name 'plugin.json' -type f | sort)
+for root in .claude-plugin .codex-plugin; do
+  if [ ! -d "$root" ]; then
+    echo "error: required plugin manifest root not found: $root/" >&2
+    exit 1
+  fi
+  found=0
+  while IFS= read -r line; do
+    MANIFESTS+=("$line")
+    found=1
+  done < <(find "$root" -maxdepth 2 -name 'plugin.json' -type f | sort)
+  if [ "$found" -eq 0 ]; then
+    echo "error: no plugin.json found under $root/" >&2
+    exit 1
+  fi
+done
 if [ "${#MANIFESTS[@]}" -eq 0 ]; then
-  echo "error: no plugin.json found under .claude-plugin/" >&2; exit 1
+  echo "error: no Claude or Codex plugin manifests found" >&2; exit 1
 fi
 
-# Current version (authoritative: first manifest; assume all are in lockstep)
+# Current version (authoritative: first manifest). Refuse to release if any
+# manifest has drifted so the two plugin catalogs never publish mismatched
+# versions.
 CURRENT=$(jq -r .version "${MANIFESTS[0]}")
 if [ -z "$CURRENT" ] || [ "$CURRENT" = "null" ]; then
   echo "error: ${MANIFESTS[0]} has no .version field" >&2; exit 1
+fi
+for m in "${MANIFESTS[@]:1}"; do
+  version=$(jq -r .version "$m")
+  if [ -z "$version" ] || [ "$version" = "null" ]; then
+    echo "error: $m has no .version field" >&2
+    exit 1
+  fi
+  if [ "$version" != "$CURRENT" ]; then
+    echo "error: plugin manifest versions are out of sync:" >&2
+    echo "  ${MANIFESTS[0]}: $CURRENT" >&2
+    echo "  $m: $version" >&2
+    exit 1
+  fi
+done
+
+if [ "$MODE" = "current" ]; then
+  echo "$CURRENT"
+  exit 0
 fi
 
 bump() {
