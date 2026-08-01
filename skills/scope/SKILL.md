@@ -26,9 +26,9 @@ Used standalone (`/bdx:scope bd-xxx`) or called from `triage` when it decides an
 2. **Read the existing bd**: `bd show <id>` to get title, description, existing labels, status, and priority (needed to seed the plan's `rank:` frontmatter).
 3. **Guard**: if a plan file already exists at `$AGENT_HOME/plan/<bd-id>-*.md` or the description contains `plan: $AGENT_HOME/plan/`, abort with the existing path — do not overwrite.
 4. **Derive slug** (kebab-case) from the bd title.
-5. **Derive labels** (see Labels section below). Apply via `bd update <id> -l <project> [-l <component>...]`. bd labels are additive — existing labels are preserved.
+5. **Derive labels** (see Labels section below). Apply via `bd update <id> --add-label <project> [--add-label <component>...]`. bd labels are additive — existing labels are preserved.
 6. **Resolve parent** for frontmatter: `bd dep list <id> --direction=down --type parent-child --json` and take the first `id` (empty if none). bd is canonical — `scope` reads only; it does not create parent links.
-7. **Read `$CLAUDE_SESSION_ID`** (set by SessionStart hook). If empty, use `sessions: []`.
+7. **Resolve the bdx session identity**: prefer `$BDX_SESSION_ID`; otherwise use the exact `bdx-session-id` value injected by SessionStart; otherwise prefix a non-empty `$CLAUDE_SESSION_ID` as `claude-code:<id>`. If none is available, use `sessions: []`.
 8. **Write the plan file** at `$AGENT_HOME/plan/<bd-id>-<slug>.md` using the same template as `plan`, populating `parent:` with the resolved value (empty if none). Seed Goal/Context from the bd's existing description.
 9. **Cross-link**: `bd update <id> -d "plan: $AGENT_HOME/plan/<bd-id>-<slug>.md"` (replaces description — so preserve the original text inside the plan's Goal/Context first, not the bd body).
 10. **Report** bd-id, labels added, parent (if any), plan path in one line.
@@ -61,7 +61,7 @@ Identical to `plan`. Key seeding differences when scoping an existing bd:
 - **Goal**: extract from the bd's title + description. Reword to 1–2 sentences if the description was a single-liner.
 - **Context**: lead with "Originally captured as `bd-xxx` on `<created-date>`." then preserve the bd's original description body. Link any external refs found in the description.
 - **Plan**: if the bd's description lists concrete steps, convert to checkboxes. Otherwise leave `Phase 1 — TBD` with a single checkbox asking the next session to flesh it out.
-- **Frontmatter**: `kind: agent-note`, `status: draft`, `tags: [plan, <project>]`, `sessions: [$CLAUDE_SESSION_ID]`, `parent: <resolved-from-bd-dep-list-or-empty>`. Seed `rank:` (0-99) from the bd's existing priority captured in step 2 — p0→10, p1→30, p2→50, p3→70. If priority is unset, default rank to 50.
+- **Frontmatter**: `kind: agent-note`, `status: draft`, `tags: [plan, <project>]`, the harness-qualified bdx session identity as a quoted `sessions:` entry (or `[]`), and `parent: <resolved-from-bd-dep-list-or-empty>`. Seed `rank:` (0-99) from the bd's existing priority captured in step 2 — p0→10, p1→30, p2→50, p3→70. If priority is unset, default rank to 50.
 
 ## Rules
 
@@ -81,6 +81,6 @@ Identical to `plan`. Key seeding differences when scoping an existing bd:
 6. Resolve parent: `bd dep list <id> --direction=down --type parent-child --json` → first `id` or empty.
 7. `mkdir -p "$AGENT_HOME/plan"`.
 8. Write `$AGENT_HOME/plan/<bd-id>-<slug>.md` — populate `parent:` with the resolved value (empty if none); seed Goal/Context from the bd's existing description (don't lose it).
-9. `bd update <id> -l <project> [-l <component>...]` — add labels.
+9. `bd update <id> --add-label <project> [--add-label <component>...]` — add labels.
 10. `bd update <id> -d "plan: $AGENT_HOME/plan/<bd-id>-<slug>.md"` — cross-link.
 11. Print one-line report: `bd-id labels=[...] parent=<bd-yyy|—> plan=<path>`.

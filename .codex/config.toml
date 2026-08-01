@@ -1,0 +1,15 @@
+default_permissions = "bdx-local"
+
+[features.network_proxy]
+enabled = true
+
+[permissions.bdx-local]
+description = "Workspace access plus the local Dolt server."
+extends = ":workspace"
+
+[permissions.bdx-local.network]
+enabled = true
+allow_local_binding = true
+
+[permissions.bdx-local.network.domains]
+"127.0.0.1" = "allow"

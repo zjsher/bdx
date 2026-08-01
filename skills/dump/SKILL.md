@@ -18,7 +18,7 @@ This is broader and lossier than `summarize` — it captures conversational stat
 - **Tick any `- [ ]` whose work is clearly finished** based on the conversation. Conservative — leave it open if there's any doubt. The plan file's role as a live progress view is exactly what makes peeking at it useful, but a falsely-ticked box poisons that.
 - **Optionally append one inline divergence annotation** per ticked box, in the form `- [x] <original text> → <one-line divergence>`. Same rules as `check`'s `--note`: single line, no markdown beyond inline code, append-only — never rewrite the original checkbox text.
 - **Never rewrite descriptive prose, reorder sections, delete content, or restructure the plan.** The plan-as-prompt diff against the eventual summary is load-bearing — that's how a future reader sees "what we set out to do" vs "what shipped." `dump` preserves it; `summarize` is where any prose-level reflection lives, and even there the default is to leave the plan intact.
-- **Append `$CLAUDE_SESSION_ID` to the plan's `sessions:` frontmatter** if not already present.
+- **Append the harness-qualified bdx session identity to the plan's `sessions:` frontmatter** if available and not already present.
 
 If the plan needs structural change (a new phase, a deleted step, a reframed goal), that's a signal the task's shape has shifted and the user should decide explicitly — not a mutation `dump` should make on its own.
 
@@ -60,7 +60,7 @@ aliases: []
 tags: [context, <project-or-area>]
 private: false # true = personal/side-project, skip team sync
 sessions:
-  - <uuid-of-session-producing-this-dump> # from $CLAUDE_SESSION_ID
+  - "<harness>:<session-id>" # from the bdx SessionStart identity
 related:
   - "[[summary/<related-slug>--<date>]]"
   - "[[plan/bd-xxx-<slug>]]"
@@ -133,10 +133,10 @@ related:
 2. Identify the bd-id: from `$ARGUMENTS`, the plan file in conversation, or ask. If the dump isn't tied to a beads issue (e.g. exploratory research), set `bd: none` and skip steps 7 and 10.
 3. Compute filename and confirm no collision.
 4. Resolve parent for frontmatter: `bd dep list <id> --direction=down --type parent-child --json` → first `id` (empty if none, or if `bd: none`).
-5. Read `$CLAUDE_SESSION_ID` (set by SessionStart hook). If empty, set `sessions: []`.
+5. Resolve the harness-qualified bdx session identity: prefer `$BDX_SESSION_ID`; otherwise use the exact `bdx-session-id` value injected by SessionStart; otherwise prefix a non-empty `$CLAUDE_SESSION_ID` as `claude-code:<id>`. If none is available, set `sessions: []`.
 6. Walk back through the conversation and fill each section, wikilinking files / concepts / tickets / prior notes.
-7. **Plan sweep** (skip if `bd: none`): locate `$AGENT_HOME/plan/<bd-id>-*.md`. For each `- [ ]` line whose step is clearly done per the conversation, flip it to `- [x]` (and append `→ <one-line divergence>` if the implementation diverged in a small, captureable way — see "Plan mutation" rules above). Do not touch any other text in the plan. Append `$CLAUDE_SESSION_ID` to the plan's `sessions:` list if not already present.
-8. Write the context file with `kind: agent-note`, the resolved `parent:` (empty if none), and `$CLAUDE_SESSION_ID` in `sessions:`.
+7. **Plan sweep** (skip if `bd: none`): locate `$AGENT_HOME/plan/<bd-id>-*.md`. For each `- [ ]` line whose step is clearly done per the conversation, flip it to `- [x]` (and append `→ <one-line divergence>` if the implementation diverged in a small, captureable way — see "Plan mutation" rules above). Do not touch any other text in the plan. Append the resolved bdx session identity to the plan's `sessions:` list if available and not already present.
+8. Write the context file with `kind: agent-note`, the resolved `parent:` (empty if none), and the resolved bdx session identity as a quoted `sessions:` entry (or `[]`).
 9. Cross-link back to beads: `bd comment <bd-id> "context: $AGENT_HOME/context/<label>--<date>-<time>.md"` — makes the dump discoverable from `bd show`.
 10. If any checkboxes were ticked in step 7, optionally `bd comment <bd-id> "checked (via dump): <one-line list>"` so the bd thread reflects progress (skip if you'd rather keep the comment thread quiet — the plan diff itself is a record).
 11. Report the context file path and the count of ticked boxes (if any) to the user in one line.

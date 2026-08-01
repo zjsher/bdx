@@ -1,4 +1,4 @@
-.PHONY: patch minor major release help test-install test-install-shell
+.PHONY: patch minor major release help test-install test-install-shell test-install-permissions
 
 # Pick docker or fall back to podman so the test targets work for either runtime.
 DOCKER ?= $(shell command -v docker 2>/dev/null || command -v podman 2>/dev/null)
@@ -19,6 +19,7 @@ help:
 	@echo "Installer testing (clean-slate container):"
 	@echo "  make test-install           # run scripts/install.sh in a fresh $(TEST_IMAGE)"
 	@echo "  make test-install-shell     # same, then drop into a shell for inspection"
+	@echo "  make test-install-permissions # focused local permission + session hook checks"
 	@echo "  make test-install TEST_IMAGE=debian:12-slim   # override base image"
 
 patch minor major:
@@ -57,3 +58,6 @@ test-install-shell:
 		-v "$(CURDIR):/src:ro" \
 		$(TEST_IMAGE) \
 		bash -c '$(_INSTALL_BOOTSTRAP); echo; echo "--- installer finished. dropping into shell."; exec bash'
+
+test-install-permissions:
+	@bash dev/test-install-permissions.sh

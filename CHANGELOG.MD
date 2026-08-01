@@ -1,3 +1,10 @@
+## v0.8.6 (2026-07-31)
+
+### ✨ Features
+- [commits] Added support for Codex based on commit message "codex support"
+
+**Note:** No code diffs were provided for this commit, only the commit message. A more detailed changelog would require access to the actual code changes to accurately describe the specific functionality, components, or files affected by this Codex support addition.
+
 ## v0.8.5 (2026-07-30)
 
 ### 🛠️ Improvements

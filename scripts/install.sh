@@ -6,7 +6,7 @@
 #   3. env         (BEADS_DIR + AGENT_HOME exports in your shell rc, with prompts)
 #   4. bd init     (initialize the global beads repo at $BEADS_DIR, shared-server)
 #   5. templates   (seed example manifest + DHH/Linus personas into $AGENT_HOME)
-#   6. perms       (merge bdx allowlist into ~/.claude/settings.json — touches ~/.claude/)
+#   6. perms       (Claude allowlist + Codex exec-policy rule)
 #
 # Usage:
 #   bash <(curl -fsSL https://raw.githubusercontent.com/zeejers/bdx/refs/heads/development/scripts/install.sh)
@@ -18,7 +18,7 @@
 #   ./install.sh --skip-dolt      # skip dolt install
 #   ./install.sh --skip-init      # skip the bd init step
 #   ./install.sh --skip-templates # skip the manifest/personas seeding
-#   ./install.sh --skip-perms     # skip the Claude Code permissions allowlist
+#   ./install.sh --skip-perms     # skip Claude Code + Codex permission setup
 #
 # Safe to re-run; everything is idempotent.
 
@@ -337,17 +337,14 @@ main() {
     fi
   fi
 
-  # --- 6. Claude Code permissions allowlist -----------------------------
-  # Merges the bdx allowlist into ~/.claude/settings.json so /bdx:* skills
-  # don't trigger a permission prompt every time they fire bd or write to
-  # $AGENT_HOME. Uses jq for a safe merge — existing entries are preserved
-  # and de-duplicated. AGENT_HOME path is rewritten to ~/... form so the
-  # config stays portable.
-  bold "6/6  Claude Code permissions allowlist (touches ~/.claude/)"
+  # --- 6. Agent permission setup -----------------------------------------
+  # Claude Code: merge the bdx allowlist into ~/.claude/settings.json.
+  # Codex: append a managed block to a dedicated exec-policy rules file under
+  # $CODEX_HOME/rules/. Existing settings, rules, and user additions to the
+  # dedicated file are preserved; reruns do not duplicate the managed block.
+  bold "6/6  agent permissions (Claude Code + Codex)"
   if [ "$SKIP_PERMS" = 1 ]; then
     info "skipped (--skip-perms)"
-  elif ! command -v jq >/dev/null 2>&1; then
-    warn "jq not on PATH — skipping. Install jq and re-run, or copy the snippet from the README."
   else
     local target_ah="${AGENT_HOME:-${chosen_agent_home:-$HOME/.bdx-agent}}"
     local ah_pattern="$target_ah"
@@ -356,34 +353,72 @@ main() {
       ah_pattern="~${target_ah#$HOME}"
     fi
     local settings_file="$HOME/.claude/settings.json"
-    info "destination: $settings_file"
-    info "adds:        Bash(bd:*), Read/Write/Edit($ah_pattern/**)"
-    info "(existing settings.json entries are preserved and de-duped)"
-    if ask_yn "Merge bdx allowlist into $settings_file?" Y; then
-      mkdir -p "$HOME/.claude"
-      local merge_jq='.permissions.allow = ((.permissions.allow // []) + [
-        "Bash(bd:*)",
-        "Read(\($ah)/**)",
-        "Write(\($ah)/**)",
-        "Edit(\($ah)/**)"
-      ] | unique)'
-      if [ -f "$settings_file" ]; then
-        if jq --arg ah "$ah_pattern" "$merge_jq" "$settings_file" > "$settings_file.tmp" 2>/dev/null; then
-          mv "$settings_file.tmp" "$settings_file"
-          ok "merged bdx allowlist into $settings_file"
-        else
-          rm -f "$settings_file.tmp"
-          warn "couldn't merge into $settings_file (invalid JSON?) — left untouched"
-        fi
+    local codex_home="${CODEX_HOME:-$HOME/.codex}"
+    local codex_rules_file="$codex_home/rules/bdx.rules"
+    info "Claude: $settings_file"
+    info "Codex:  $codex_rules_file"
+    info "adds:    Claude Bash(bd:*) + AGENT_HOME access; Codex prefix_rule([\"bd\"], allow)"
+    info "(existing settings and rules are preserved; managed entries are idempotent)"
+    if ask_yn "Install bdx permissions for Claude Code and Codex?" Y; then
+      if ! command -v jq >/dev/null 2>&1; then
+        warn "jq not on PATH — skipped Claude Code settings merge"
       else
-        if jq --arg ah "$ah_pattern" "$merge_jq" <<<'{}' > "$settings_file"; then
-          ok "wrote $settings_file with bdx allowlist"
+        mkdir -p "$HOME/.claude"
+        local merge_jq='.permissions.allow = ((.permissions.allow // []) + [
+          "Bash(bd:*)",
+          "Read(\($ah)/**)",
+          "Write(\($ah)/**)",
+          "Edit(\($ah)/**)"
+        ] | unique)'
+        if [ -f "$settings_file" ]; then
+          if jq --arg ah "$ah_pattern" "$merge_jq" "$settings_file" > "$settings_file.tmp" 2>/dev/null; then
+            mv -f "$settings_file.tmp" "$settings_file"
+            ok "merged bdx allowlist into $settings_file"
+          else
+            rm -f "$settings_file.tmp"
+            warn "couldn't merge into $settings_file (invalid JSON?) — left untouched"
+          fi
         else
-          warn "failed to write $settings_file"
+          if jq --arg ah "$ah_pattern" "$merge_jq" <<<'{}' > "$settings_file"; then
+            ok "wrote $settings_file with bdx allowlist"
+          else
+            warn "failed to write $settings_file"
+          fi
         fi
       fi
+
+      local codex_marker="# BEGIN bdx managed rule"
+      mkdir -p "$(dirname "$codex_rules_file")"
+      if [ -f "$codex_rules_file" ] && grep -Fqx "$codex_marker" "$codex_rules_file"; then
+        ok "Codex bdx rule already present in $codex_rules_file"
+      else
+        if [ -s "$codex_rules_file" ]; then
+          printf '\n' >> "$codex_rules_file"
+        fi
+        cat >> "$codex_rules_file" <<'BDX_CODEX_RULE'
+# BEGIN bdx managed rule
+# Allows bdx skills to use Beads outside the workspace sandbox so bd can reach
+# its configured Dolt store. Codex evaluates compound commands segment by
+# segment, and this exact-token prefix does not match commands such as `bdx`.
+prefix_rule(
+    pattern = ["bd"],
+    decision = "allow",
+    justification = "bdx skills use Beads task tracking and its configured Dolt store",
+    match = [
+        "bd ready",
+        "bd show bd-123",
+        "bd dolt push",
+    ],
+    not_match = [
+        "bdx ready",
+    ],
+)
+# END bdx managed rule
+BDX_CODEX_RULE
+        ok "installed Codex bdx rule in $codex_rules_file"
+      fi
     else
-      info "skipped — copy the snippet from the README's 'Recommended: skip permission prompts' section when ready"
+      info "skipped — copy the Claude and Codex snippets from the README when ready"
     fi
   fi
 

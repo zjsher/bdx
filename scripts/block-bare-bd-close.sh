@@ -1,5 +1,5 @@
 #!/bin/bash
-# PreToolUse hook: block `bd close` in Bash tool calls so Claude is forced
+# PreToolUse hook: block `bd close` in Bash tool calls so the agent is forced
 # to go through /bdx:close (which runs /bdx:summarize first, then closes the
 # bd issue with a resolution). Summaries otherwise get skipped and history
 # is lost.

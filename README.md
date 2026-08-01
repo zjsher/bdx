@@ -1,6 +1,6 @@
 # bdx
 
-**Every Claude Code session writes a markdown plan/summary keyed by a `bd` issue. The session ends; the record stays, and the work is handled in reviewable slices.**
+**Every agent session writes a markdown plan/summary keyed by a `bd` issue. The session ends; the record stays, and the work is handled in reviewable slices.**
 
 ![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-D97757?logo=anthropic&logoColor=white) ![beads](https://img.shields.io/badge/beads-task_glue-9333EA) ![dolt](https://img.shields.io/badge/dolt-versioned_storage-1E40AF) ![status](https://img.shields.io/badge/status-experimental-yellow)
 
@@ -40,7 +40,7 @@ plan → attach → (work: slice ⇄ slice-review, ticking with check / dump?) �
 
 **1. Plan.** Chat with the agent about what you want to build, then `/bdx:plan` to plan from the discussion (or `/bdx:plan "feature in one line"`). You get back a beads issue (e.g. `bd-abc`) plus a plan file at `$AGENT_HOME/plan/bd-abc-<slug>.md`.
 
-**2. Attach.** From any Claude session, `/bdx:attach bd-abc`. The session loads the plan, every prior context dump, and the latest summary into turn-1 context - the agent picks up with full history.
+**2. Attach.** From any supported agent session, `/bdx:attach bd-abc`. The session loads the plan, every prior context dump, and the latest summary into turn-1 context - the agent picks up with full history.
 
 > From a fresh terminal, `bdc bd-abc` launches `claude` with the task already attached.
 
@@ -101,11 +101,13 @@ $AGENT_HOME/
 └── inbox/      # mobile-capture seeds
 ```
 
-Override by exporting `AGENT_HOME` before launching `claude` - e.g. `export AGENT_HOME="$HOME/Dropbox/Notes/agent"` to sync plans across machines.
+Override by exporting `AGENT_HOME` before launching your agent harness - e.g. `export AGENT_HOME="$HOME/Dropbox/Notes/agent"` to sync plans across machines.
 
 ## Permissions
 
-Every `/bdx:*` skill fires `bd` subcommands and writes to `$AGENT_HOME/`. The Quickstart installer adds the right allowlist to `~/.claude/settings.json` automatically. To do it by hand:
+Every `/bdx:*` skill fires `bd` subcommands and writes to `$AGENT_HOME/`. The Quickstart installer configures both Claude Code and Codex automatically.
+
+For Claude Code, the installer merges this into `~/.claude/settings.json`:
 
 ```json
 {
@@ -121,6 +123,20 @@ Every `/bdx:*` skill fires `bd` subcommands and writes to `$AGENT_HOME/`. The Qu
 ```
 
 If you've overridden `AGENT_HOME`, swap that path in. Claude Code expands `~` but not shell env vars.
+
+For Codex, the installer appends an idempotent managed block to `$CODEX_HOME/rules/bdx.rules` (`CODEX_HOME` defaults to `~/.codex`):
+
+```python
+prefix_rule(
+    pattern = ["bd"],
+    decision = "allow",
+    justification = "bdx skills use Beads task tracking and its configured Dolt store",
+    match = ["bd ready", "bd show bd-123", "bd dolt push"],
+    not_match = ["bdx ready"],
+)
+```
+
+Codex loads user rules at startup, so restart it after installing bdx. The exact-token `bd` prefix does not allow similarly named commands such as `bdx`.
 
 ---
 
@@ -147,9 +163,10 @@ The plan stays close to its original shape - it's the prompt, and the diff `plan
 
 ### Hooks
 
-- **`SessionStart`** → `capture-session-id.sh` exposes the session UUID as `$CLAUDE_SESSION_ID` so artifacts can record which session produced them in `sessions:` frontmatter, enabling `claude --resume <uuid>`.
+- **`SessionStart`** → `capture-session-id.sh` records a harness-qualified identity such as `"claude-code:<uuid>"` or `"codex:<uuid>"` for `sessions:` frontmatter. It exports `$BDX_SESSION_ID` when the host supports persistent hook environment updates and otherwise injects the value into session context. Set `BDX_HARNESS=<slug>` to identify another hook-compatible host; undetected hosts use `"unknown:<id>"`.
+- Resume a recorded session by splitting the prefix from the id: `claude --resume <id>` for `claude-code:` or `codex resume <id>` for `codex:`.
 - **`SessionStart`** → `bdx-ensure-agent-home.sh` resolves `$AGENT_HOME`, auto-creates the subdir layout, and exports the value.
-- **`SessionStart:startup`** → `bd-auto-attach.sh` if `$BD_ID` is set, auto-loads plan/context/summary, appends the session UUID to `sessions:`, flips bd status `open → in_progress`, and emits the bundle as `additionalContext` on turn 1.
+- **`SessionStart:startup`** → `bd-auto-attach.sh` if `$BD_ID` is set, auto-loads plan/context/summary, appends the harness-qualified session identity to `sessions:`, flips bd status `open → in_progress`, and emits the bundle as `additionalContext` on turn 1.
 - **`PreToolUse:Bash`** → `block-bare-bd-close.sh` blocks direct `bd close` so you're forced through `/bdx:close`.
 
 ### Launcher

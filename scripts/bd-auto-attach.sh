@@ -5,10 +5,11 @@
 # Actions:
 #   1. Verify the bd issue exists
 #   2. If status is `open`, flip to `in_progress`
-#   3. Append this session's UUID to the plan file's `sessions:` frontmatter
+#   3. Append this harness-qualified session identity to the plan file's
+#      `sessions:` frontmatter
 #      (idempotent — no-op if already present)
 #   4. Emit a briefing (plan + latest context + latest summary + recent
-#      comments) as `additionalContext` so Claude starts pre-loaded
+#      comments) as `additionalContext` so the agent starts pre-loaded
 #
 # Opt in by launching as:
 #   BD_ID=bd-xxx claude -n "bd-xxx-<slug>"
@@ -19,6 +20,12 @@ set -u
 INPUT=$(cat)
 SESSION_ID=$(printf '%s' "$INPUT" | jq -r '.session_id // empty')
 SOURCE=$(printf '%s' "$INPUT" | jq -r '.source // empty')
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+# shellcheck source=./bdx-session-id.sh
+. "$SCRIPT_DIR/bdx-session-id.sh"
+BDX_SESSION_ID=""
+[ -n "$SESSION_ID" ] && BDX_SESSION_ID=$(bdx_session_identity "$SESSION_ID")
 
 # Only act on fresh startup — resume/clear/compact already have context
 [ "$SOURCE" = "startup" ] || exit 0
@@ -50,27 +57,28 @@ fi
 # Locate plan (1 per task by convention)
 PLAN=$(ls "$AGENT_HOME"/plan/"$BD_ID"-*.md 2>/dev/null | head -1)
 
-# Append session UUID to plan frontmatter (idempotent).
+# Append the harness-qualified session identity to plan frontmatter
+# (idempotent).
 # POSIX awk — no python or yq dependency. Handles four cases:
 #   - sessions: with existing entries → append new uuid if not present
 #   - sessions: with new uuid already there → no-op (idempotent)
 #   - sessions: [] inline empty list → convert to multi-line + append
 #   - no sessions: key in frontmatter → inject the block before closing ---
 # Files without YAML frontmatter pass through unchanged.
-if [ -n "$PLAN" ] && [ -n "$SESSION_ID" ]; then
-  awk -v sid="$SESSION_ID" '
+if [ -n "$PLAN" ] && [ -n "$BDX_SESSION_ID" ]; then
+  awk -v sid="$BDX_SESSION_ID" '
   BEGIN { in_fm=0; in_sessions=0; saw_sessions=0; sid_present=0 }
   NR==1 && /^---[[:space:]]*$/ { in_fm=1; print; next }
   in_fm && /^---[[:space:]]*$/ {
-    if (in_sessions && !sid_present) print "  - " sid
-    if (!saw_sessions) { print "sessions:"; print "  - " sid }
+    if (in_sessions && !sid_present) print "  - \"" sid "\""
+    if (!saw_sessions) { print "sessions:"; print "  - \"" sid "\"" }
     in_fm=0; in_sessions=0; print; next
   }
   in_fm && /^sessions:[[:space:]]*$/ { saw_sessions=1; in_sessions=1; print; next }
   in_fm && /^sessions:[[:space:]]*\[\][[:space:]]*$/ { saw_sessions=1; print "sessions:"; in_sessions=1; next }
   in_sessions && /^[[:space:]]+-/ { if (index($0, sid) > 0) sid_present=1; print; next }
   in_sessions && /^[^[:space:]-]/ {
-    if (!sid_present) print "  - " sid
+    if (!sid_present) print "  - \"" sid "\""
     in_sessions=0; print; next
   }
   { print }
@@ -94,7 +102,7 @@ CTX=$(mktemp)
   echo "# Auto-attached to $BD_ID — ${TITLE:-(no title)}"
   echo
   echo "Status flipped to **in_progress** (was $STATUS)."
-  echo "Session UUID appended to plan \`sessions:\` list."
+  echo "Session identity appended to plan \`sessions:\` list: \`$BDX_SESSION_ID\`."
   echo
   if [ -n "$PLAN" ]; then
     echo "## Plan — $PLAN"

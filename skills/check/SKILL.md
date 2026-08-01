@@ -16,7 +16,7 @@ Flip one or more `- [ ]` checkboxes to `- [x]` on the bd's plan file. The cheap 
 3. Match the checkbox fragment against open `- [ ]` lines in the plan, case-insensitive substring (or the user's full line). On ambiguity, list candidates and stop. On zero matches, fail loudly.
 4. Edit the matched line: `- [ ]` → `- [x]`.
 5. If `--note "<text>"` was passed, append ` → <text>` to the same line (one-liner inline divergence — see Annotation rules below).
-6. Append the session UUID to the plan's `sessions:` frontmatter list if it's not already there (reuse the same logic as `attach`/`dump`).
+6. Append the harness-qualified bdx session identity to the plan's `sessions:` frontmatter list if it's not already there (reuse the same logic as `attach`/`dump`).
 7. Optional: `bd comment <bd-id> "checked: <matched checkbox text>"` so the bd's comment thread reflects step-by-step progress. Skip the comment if the user passed `--quiet`.
 8. Report: `bd-xxx · ticked <N> box(es) · plan/<filename>` in one line.
 
@@ -63,7 +63,7 @@ If the fragment is a comma-separated list (`"add endpoint, wire frontend"`), mat
 3. Read the plan file. Extract every `- [ ] <text>` line with its line number.
 4. For each fragment in `$ARGUMENTS` (split on `,`), find the unique open checkbox whose text contains the fragment (case-insensitive substring). On ambiguity or zero match, abort and print candidates.
 5. For each match: `Edit` the plan file, replacing `- [ ] <full text>` with `- [x] <full text>` (plus ` → <note>` if `--note` was supplied).
-6. Read `$CLAUDE_SESSION_ID`. If set and not already in the plan's `sessions:` list, append it.
+6. Resolve the harness-qualified bdx session identity: prefer `$BDX_SESSION_ID`; otherwise use the exact `bdx-session-id` value injected by SessionStart; otherwise prefix a non-empty `$CLAUDE_SESSION_ID` as `claude-code:<id>`. If available and not already in the plan's `sessions:` list, append it as a quoted string.
 7. Unless `--quiet`: `bd comment <bd-id> "checked: <text>"` for each ticked box (one comment per box keeps the bd thread granular).
 8. Report the count and plan path on one line.
 

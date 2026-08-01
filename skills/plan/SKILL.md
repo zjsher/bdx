@@ -125,7 +125,7 @@ private: false   # true = personal/side-project, skip team sync
 status: draft   # agents flip to in-progress / done via bd, not here
 rank: <0-99>   # seeded from bd priority at creation; manual override for fine-grained Obsidian sort. bd remains canonical.
 sessions:
-  - <uuid-of-session-that-wrote-this>   # from $CLAUDE_SESSION_ID
+  - "<harness>:<session-id>"   # from the bdx SessionStart identity
 ---
 
 # <title>
@@ -193,11 +193,11 @@ sessions:
 5. `bd create "<title>" -t task -p <0-3> -l <project> [-l <component> ...]` — capture `bd-xxx` from output.
 6. If a parent was detected: `bd dep add bd-xxx <parent-id> -t parent-child`.
 7. Resolve parent for frontmatter: `bd dep list bd-xxx --direction=down --type parent-child --json` and take the first `id` (or empty if none).
-8. Read `$CLAUDE_SESSION_ID` — set by the `SessionStart` hook. If empty (e.g. running in `--print` mode where the hook doesn't fire), set `sessions: []` and continue.
-9. Write `$AGENT_HOME/plan/bd-xxx-<slug>.md` using the template above. Include `kind: agent-note`, `$CLAUDE_SESSION_ID` in `sessions:` list, the labels in `tags:`, the resolved parent in `parent:` (empty if none), and seed `rank:` from the chosen `-p` value using the tier table above (p0→10, p1→30, p2→50, p3→70).
+8. Resolve the harness-qualified bdx session identity: prefer `$BDX_SESSION_ID`; otherwise use the exact `bdx-session-id` value injected by the `SessionStart` hook; otherwise, for backward compatibility, prefix a non-empty `$CLAUDE_SESSION_ID` as `claude-code:<id>`. If none is available (for example, a host without hooks), set `sessions: []` and continue.
+9. Write `$AGENT_HOME/plan/bd-xxx-<slug>.md` using the template above. Include `kind: agent-note`, the resolved bdx session identity in `sessions:` as a quoted string, the labels in `tags:`, the resolved parent in `parent:` (empty if none), and seed `rank:` from the chosen `-p` value using the tier table above (p0→10, p1→30, p2→50, p3→70).
 10. `bd update bd-xxx -d "plan: $AGENT_HOME/plan/bd-xxx-<slug>.md"` to cross-link.
 11. Report the bd-id, labels, parent (if any), and absolute plan path back to the user in one line.
 
 ## Resuming
 
-To re-enter the session that produced this plan: `claude --resume <uuid>`. The `sessions:` frontmatter lists every session that touched the artifact, newest last.
+The `sessions:` frontmatter lists every harness-qualified session that touched the artifact, newest last. Resume `claude-code:<id>` with `claude --resume <id>` and `codex:<id>` with `codex resume <id>`; use the named harness's resume command for other prefixes.

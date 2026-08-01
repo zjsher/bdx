@@ -63,7 +63,7 @@ tags: [summary, <project-or-area>]
 private: false   # true = personal/side-project, skip team sync
 plan: "[[plan/bd-xxx-<slug>]]"   # or "none"
 sessions:
-  - <uuid-of-session-finalizing-this-summary>   # from $CLAUDE_SESSION_ID
+  - "<harness>:<session-id>"   # from the bdx SessionStart identity
 ---
 
 # <title>
@@ -118,7 +118,7 @@ The summary is the canonical "what shipped" record — that's its job. The plan 
 
 - **Final checkbox sweep is allowed.** Same rules as `dump` and `check`: tick any `- [ ]` whose work is now done, and optionally append a one-line `→ <divergence>` annotation per ticked box. Conservative — don't tick what wasn't actually finished.
 - **Do not rewrite the plan's prose, scope, goals, or section structure.** The plan-vs-summary diff is the value; rewriting the plan to match the summary destroys it. If the implementation diverged enough that the plan is actively misleading to a future reader, capture that in the summary's `## What was built` and `## Key decisions` — that's exactly what the summary is for.
-- **`sessions:` is append-only.** Add `$CLAUDE_SESSION_ID` to the plan's frontmatter if not already present. Never replace the list.
+- **`sessions:` is append-only.** Add the harness-qualified bdx session identity to the plan's frontmatter if available and not already present. Never replace the list.
 
 ## Process
 
@@ -126,10 +126,10 @@ The summary is the canonical "what shipped" record — that's its job. The plan 
 2. Identify the bd-id: from `$ARGUMENTS`, the plan file name in conversation, or ask. If the work truly has no bd issue, set `bd: none` in frontmatter and skip steps 4, 7, and 10 (parent resolution, plan sweep, and the bd comment cross-link).
 3. Decide the slug and final path; check for collisions.
 4. Resolve parent for frontmatter: `bd dep list <id> --direction=down --type parent-child --json` → first `id` (empty if none).
-5. Read `$CLAUDE_SESSION_ID` (set by SessionStart hook). If empty, set `sessions: []`.
+5. Resolve the harness-qualified bdx session identity: prefer `$BDX_SESSION_ID`; otherwise use the exact `bdx-session-id` value injected by SessionStart; otherwise prefix a non-empty `$CLAUDE_SESSION_ID` as `claude-code:<id>`. If none is available, set `sessions: []`.
 6. Scan the conversation for: original request, plan, decisions, file changes, verification steps, unresolved items, related prior summaries/context dumps.
-7. **Final plan sweep** (skip if `bd: none`): locate `$AGENT_HOME/plan/<bd-id>-*.md`. Tick any remaining `- [ ]` whose work is clearly done (with optional `→ <divergence>` annotations per the rules above). Do not touch other plan content. Append `$CLAUDE_SESSION_ID` to the plan's `sessions:` list if not already present.
-8. Write the summary file using the template above, with wikilinks everywhere, `kind: agent-note`, the resolved `parent:`, and `$CLAUDE_SESSION_ID` in `sessions:`. Do not include the `## Persona reviews` section — step 9 appends it only when a persona flag was passed and personas returned output.
+7. **Final plan sweep** (skip if `bd: none`): locate `$AGENT_HOME/plan/<bd-id>-*.md`. Tick any remaining `- [ ]` whose work is clearly done (with optional `→ <divergence>` annotations per the rules above). Do not touch other plan content. Append the resolved bdx session identity to the plan's `sessions:` list if available and not already present.
+8. Write the summary file using the template above, with wikilinks everywhere, `kind: agent-note`, the resolved `parent:`, and the resolved bdx session identity as a quoted `sessions:` entry (or `[]`). Do not include the `## Persona reviews` section — step 9 appends it only when a persona flag was passed and personas returned output.
 9. **Persona pass** — *skip entirely unless `--personas` or `--deep` was passed.* By default the summary ends at step 8 and the `## Persona reviews` section is absent.
 
    The prompt below is the same either way; only who runs it changes. Substitute the real path:
