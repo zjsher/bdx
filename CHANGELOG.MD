@@ -1,3 +1,14 @@
+## v0.10.0 (2026-08-01)
+
+It looks like there isn't enough information to generate a changelog. The commit message is empty (".") and no code diffs were provided in your message.
+
+To write an accurate changelog, I need at least one of the following:
+- The actual code diffs showing what lines were added/removed/changed
+- File names that were modified
+- A meaningful commit message describing the change
+
+Could you please share the diff content or additional details about what changed in this commit?
+
 ## v0.9.0 (2026-08-01)
 
 ### ✨ Features
