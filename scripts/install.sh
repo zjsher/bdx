@@ -397,9 +397,10 @@ main() {
         fi
         cat >> "$codex_rules_file" <<'BDX_CODEX_RULE'
 # BEGIN bdx managed rule
-# Allows bdx skills to use Beads outside the workspace sandbox so bd can reach
-# its configured Dolt store. Codex evaluates compound commands segment by
-# segment, and this exact-token prefix does not match commands such as `bdx`.
+# Pre-approves host execution when a bdx skill explicitly requests it so bd can
+# reach its configured Dolt store. An allow rule does not itself move a default
+# call outside the workspace sandbox; Codex-only instructions in each bd-using
+# skill require that request. The exact-token prefix does not match `bdx`.
 prefix_rule(
     pattern = ["bd"],
     decision = "allow",

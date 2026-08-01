@@ -7,6 +7,10 @@ argument-hint: "bd-id [--personas] [--deep] [and/or resolution message]"
 model: sonnet
 ---
 
+## Codex host execution (mandatory)
+
+When the harness is Codex, invoke every shell tool call that runs `bd` with `sandbox_permissions: "require_escalated"`; for a direct `bd ...` command, also set `prefix_rule: ["bd"]`. The installed allow rule only pre-approves escalation—it does not move a default call outside the workspace sandbox. This applies to read-only commands too. If a sandboxed call reports a Dolt connection failure, retry at host level before diagnosing Dolt as down; wrappers inherit the sandbox. Claude Code and other non-Codex harnesses must ignore this section and use their normal execution path.
+
 Close out a finished (or abandoned) task: verify a summary exists for the bd issue, then `bd close` it with a resolution. The **finalize** step that ends the triage → plan → attach → summarize → close lifecycle.
 
 **Trigger**: the work is done and you're ready to retire the bd from `bd ready` / `bd todo`. **Skip** if there's still meaningful follow-up — keep the bd open even though a summary may already exist (summary and close are deliberately decoupled).

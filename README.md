@@ -138,6 +138,8 @@ prefix_rule(
 
 Codex loads user rules at startup, so restart it after installing bdx. The exact-token `bd` prefix does not allow similarly named commands such as `bdx`.
 
+The rule **pre-approves** an explicit host-execution request; it does not automatically move a default shell call outside Codex's workspace sandbox. Every bdx skill that invokes `bd` therefore carries a Codex-only execution contract requiring `sandbox_permissions: "require_escalated"` (and `prefix_rule: ["bd"]` for direct commands). This includes read-only commands because a sandboxed process cannot reach a host Dolt listener on loopback. Claude Code and other harnesses ignore that Codex-only contract and continue using their normal execution path.
+
 ---
 
 ## Under the hood

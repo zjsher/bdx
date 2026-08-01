@@ -6,6 +6,10 @@ user-invocable: true
 argument-hint: bd-id
 ---
 
+## Codex host execution (mandatory)
+
+When the harness is Codex, invoke every shell tool call that runs `bd` with `sandbox_permissions: "require_escalated"`; for a direct `bd ...` command, also set `prefix_rule: ["bd"]`. The installed allow rule only pre-approves escalation—it does not move a default call outside the workspace sandbox. This applies to read-only commands too. If a sandboxed call reports a Dolt connection failure, retry at host level before diagnosing Dolt as down; wrappers inherit the sandbox. Claude Code and other non-Codex harnesses must ignore this section and use their normal execution path.
+
 Tap the current session into an existing bd-tracked task so the agent picks up cold with full task state — plan, prior comments, prior context dumps, prior summaries — and the bd issue moves to in_progress. The counterpart to `plan` / `scope` (which create the task) and `dump` (which records mid-session head-state for a future attach to load).
 
 **Trigger**: starting a session that's continuing prior work tracked in bd. **Skip** if (a) you only need a status flip — a bare `bd update <id> --status in_progress` is lighter, or (b) you're starting brand-new work — use `plan` to open the task first.

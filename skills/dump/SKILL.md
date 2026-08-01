@@ -5,6 +5,10 @@ user-invocable: true
 argument-hint: optional-label
 ---
 
+## Codex host execution (mandatory)
+
+When the harness is Codex, invoke every shell tool call that runs `bd` with `sandbox_permissions: "require_escalated"`; for a direct `bd ...` command, also set `prefix_rule: ["bd"]`. The installed allow rule only pre-approves escalation—it does not move a default call outside the workspace sandbox. This applies to read-only commands too. If a sandboxed call reports a Dolt connection failure, retry at host level before diagnosing Dolt as down; wrappers inherit the sandbox. Claude Code and other non-Codex harnesses must ignore this section and use their normal execution path.
+
 Snapshot the current session's head-state to `$AGENT_HOME/context/` so the user can close the session without losing the thread — a future `attach` re-enters cold and picks up where this left off. Written as an **Obsidian-friendly note**: graph view shows how the dump connects to summaries, plans, files, concepts, and tickets, so every in-vault cross-reference is a wikilink (`[[...]]`).
 
 Trigger is *the act of leaving*, not "mid-flight notes". If the user is still actively working but a step just finished, prefer `check` (cheap, ticks one checkbox) or a `bd comment` (state). `dump` is for the moment before context is lost.

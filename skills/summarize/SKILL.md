@@ -7,6 +7,10 @@ argument-hint: "[--personas] [--deep] [optional-focus-or-filename]"
 model: sonnet
 ---
 
+## Codex host execution (mandatory)
+
+When the harness is Codex, invoke every shell tool call that runs `bd` with `sandbox_permissions: "require_escalated"`; for a direct `bd ...` command, also set `prefix_rule: ["bd"]`. The installed allow rule only pre-approves escalation—it does not move a default call outside the workspace sandbox. This applies to read-only commands too. If a sandboxed call reports a Dolt connection failure, retry at host level before diagnosing Dolt as down; wrappers inherit the sandbox. Claude Code and other non-Codex harnesses must ignore this section and use their normal execution path.
+
 Write the durable post-implementation record for this session's work to `$AGENT_HOME/summary/` as an **Obsidian-friendly note**. Persona reviews attach here when opted into via `--personas` / `--deep`; cross-references are wikilinks (`[[...]]`) so graph view connects this summary to its plan, prior contexts, files, tickets, and concept hubs.
 
 **Trigger**: the work is done — even if the bd stays open for follow-ups. **Skip** if (a) the session is still mid-flight — use `dump` to snapshot head-state instead, or (b) the work is trivial enough that the `bd close -r "<one-liner>"` resolution captures everything worth remembering.

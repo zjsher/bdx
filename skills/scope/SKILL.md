@@ -6,6 +6,10 @@ user-invocable: true
 argument-hint: bd-id
 ---
 
+## Codex host execution (mandatory)
+
+When the harness is Codex, invoke every shell tool call that runs `bd` with `sandbox_permissions: "require_escalated"`; for a direct `bd ...` command, also set `prefix_rule: ["bd"]`. The installed allow rule only pre-approves escalation—it does not move a default call outside the workspace sandbox. This applies to read-only commands too. If a sandboxed call reports a Dolt connection failure, retry at host level before diagnosing Dolt as down; wrappers inherit the sandbox. Claude Code and other non-Codex harnesses must ignore this section and use their normal execution path.
+
 Take an existing bd issue that lacks a project label and/or plan file, and bring it into the bdx system: add manifest-validated labels, write `$AGENT_HOME/plan/<bd-id>-<slug>.md`, cross-link. The "retarget `plan` at an existing bd" operation.
 
 **Trigger**: a bd-id exists (from triage, phone capture, or `bd create` shorthand) and now needs the plan-attach lifecycle. **Skip** if (a) the bd already has a plan file — open that file and edit it instead, or (b) you're starting fresh and don't have a bd-id yet — use `plan` instead.

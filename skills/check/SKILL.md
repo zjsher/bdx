@@ -5,6 +5,10 @@ user-invocable: true
 argument-hint: bd-id "<checkbox-fragment>" [--note "<inline-divergence>"]
 ---
 
+## Codex host execution (mandatory)
+
+When the harness is Codex, invoke every shell tool call that runs `bd` with `sandbox_permissions: "require_escalated"`; for a direct `bd ...` command, also set `prefix_rule: ["bd"]`. The installed allow rule only pre-approves escalation—it does not move a default call outside the workspace sandbox. This applies to read-only commands too. If a sandboxed call reports a Dolt connection failure, retry at host level before diagnosing Dolt as down; wrappers inherit the sandbox. Claude Code and other non-Codex harnesses must ignore this section and use their normal execution path.
+
 Flip one or more `- [ ]` checkboxes to `- [x]` on the bd's plan file. The cheap primitive: no context file, no summary, no bd state change beyond an optional progress comment. Lets the plan stay live as a "what's done so far" view without forcing the user through `dump`'s heavier ceremony.
 
 **Trigger**: a verifiable step from the plan just finished and you want the plan to show it. **Skip** if (a) you're about to log out / hand off — `dump` ticks boxes *and* snapshots head-state, (b) the work is shipped — `summarize` is the right closer, (c) you want to add a new checkbox or restructure the plan — open the plan and edit it directly.

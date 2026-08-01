@@ -6,6 +6,10 @@ user-invocable: true
 argument-hint: '[persona-slug] [target: diff|staged|HEAD|bd-id|path]'
 ---
 
+## Codex host execution (mandatory)
+
+When the harness is Codex, invoke every shell tool call that runs `bd` with `sandbox_permissions: "require_escalated"`; for a direct `bd ...` command, also set `prefix_rule: ["bd"]`. The installed allow rule only pre-approves escalation—it does not move a default call outside the workspace sandbox. This applies to read-only commands too. If a sandboxed call reports a Dolt connection failure, retry at host level before diagnosing Dolt as down; wrappers inherit the sandbox. Claude Code and other non-Codex harnesses must ignore this section and use their normal execution path.
+
 # slice-review
 
 Review one slice under a contract that only fires on **real defects in what this slice changed.** This is the counterweight to an open-ended adversarial review: a reviewer told to "find what's wrong" treats an empty report as failing its job, so it manufactures speculative edge cases and you spend rounds whittling them down. This skill changes the reviewer's contract so an empty findings list is the *expected* outcome of a good slice - which is what makes one round enough.

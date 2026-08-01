@@ -5,6 +5,10 @@ user-invocable: true
 argument-hint: optional-project-path (defaults to cwd)
 ---
 
+## Codex host execution (mandatory)
+
+When the harness is Codex, invoke every shell tool call that runs `bd` with `sandbox_permissions: "require_escalated"`; for a direct `bd ...` command, also set `prefix_rule: ["bd"]`. The installed allow rule only pre-approves escalation—it does not move a default call outside the workspace sandbox. This applies to read-only commands too. If a sandboxed call reports a Dolt connection failure, retry at host level before diagnosing Dolt as down; wrappers inherit the sandbox. Claude Code and other non-Codex harnesses must ignore this section and use their normal execution path.
+
 Save manual manifest-editing work. Point this skill at a project directory; it inspects the filesystem + git to compose a manifest entry, shows you a diff, and (on your confirmation) appends or updates `$AGENT_HOME/manifest.md`.
 
 **Trigger**: a new repo needs to be visible to `plan` / `scope` (so their label validators recognize it), or an existing project's structure has shifted (new components, renamed paths). **Skip** for per-task or per-issue label work — that's `label`'s job.

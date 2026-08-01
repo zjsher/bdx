@@ -39,6 +39,19 @@ if command -v codex >/dev/null 2>&1; then
     | jq -e '.decision != "allow"' >/dev/null
 fi
 
+# A Codex allow rule only pre-approves escalation. Every skill that actually
+# emits a bd command must also instruct Codex to request host execution, while
+# explicitly leaving non-Codex harnesses on their normal path.
+BD_COMMAND_PATTERN='(^|[^[:alnum:]_])bd (ready|show|comments|update|close|create|list|search|label|dep|reopen|comment|status|dolt)'
+bd_skill_count=0
+while IFS= read -r skill_file; do
+  bd_skill_count=$((bd_skill_count + 1))
+  grep -Fq '## Codex host execution (mandatory)' "$skill_file"
+  grep -Fq 'sandbox_permissions: "require_escalated"' "$skill_file"
+  grep -Fq 'Claude Code and other non-Codex harnesses must ignore this section' "$skill_file"
+done < <(grep -lE "$BD_COMMAND_PATTERN" "$REPO_ROOT"/skills/*/SKILL.md)
+test "$bd_skill_count" -gt 0
+
 CLAUDE_ENV_FILE="$TEST_ROOT/claude.env" \
 CLAUDE_PLUGIN_ROOT="$REPO_ROOT" \
   bash "$REPO_ROOT/scripts/capture-session-id.sh" <<<'{"session_id":"claude-123"}'

@@ -6,6 +6,10 @@ user-invocable: true
 argument-hint: "optional — 'inbox' | 'bd' | <filename> | <bd-id>"
 ---
 
+## Codex host execution (mandatory)
+
+When the harness is Codex, invoke every shell tool call that runs `bd` with `sandbox_permissions: "require_escalated"`; for a direct `bd ...` command, also set `prefix_rule: ["bd"]`. The installed allow rule only pre-approves escalation—it does not move a default call outside the workspace sandbox. This applies to read-only commands too. If a sandboxed call reports a Dolt connection failure, retry at host level before diagnosing Dolt as down; wrappers inherit the sandbox. Claude Code and other non-Codex harnesses must ignore this section and use their normal execution path.
+
 Turn mobile-captured work (inbox markdown or bare `bd create` items) into real task state. By default, drains **both** sources: for each item, append to an existing bd issue (if there's a clear active workstream) or seed a new task via `plan` / `scope`. Output is always tasks ready to be picked up later via `attach` — triage never starts execution.
 
 **Trigger**: the capture queue (inbox files + unscoped bds) needs draining. **Skip** for one-off conversions — use `scope` directly on a single bd-id, or `plan` to convert one inbox note by hand.

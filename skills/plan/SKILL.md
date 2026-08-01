@@ -6,6 +6,10 @@ user-invocable: true
 argument-hint: optional-title-or-slug
 ---
 
+## Codex host execution (mandatory)
+
+When the harness is Codex, invoke every shell tool call that runs `bd` with `sandbox_permissions: "require_escalated"`; for a direct `bd ...` command, also set `prefix_rule: ["bd"]`. The installed allow rule only pre-approves escalation—it does not move a default call outside the workspace sandbox. This applies to read-only commands too. If a sandboxed call reports a Dolt connection failure, retry at host level before diagnosing Dolt as down; wrappers inherit the sandbox. Claude Code and other non-Codex harnesses must ignore this section and use their normal execution path.
+
 Open a new beads task and write the paired plan file to `$AGENT_HOME/plan/` — the plan doubles as the execution prompt for a future `attach`. bd holds state (status, deps, labels), the plan holds narrative (goal, scope, checkboxes, decisions). This skill is the only way a plan enters the system; do not write plan files ad-hoc elsewhere.
 
 **Trigger**: starting non-trivial work that needs a written plan you'll execute later or hand off. **Skip** if (a) the work is trivial enough that a `bd create -t task "<title>"` body is the whole record, or (b) the bd already exists from triage / quick capture (use `scope` to retrofit it instead).

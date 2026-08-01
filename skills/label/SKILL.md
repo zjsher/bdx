@@ -5,6 +5,10 @@ user-invocable: true
 argument-hint: bd-id <label-or-ref> [<label-or-ref> ...]
 ---
 
+## Codex host execution (mandatory)
+
+When the harness is Codex, invoke every shell tool call that runs `bd` with `sandbox_permissions: "require_escalated"`; for a direct `bd ...` command, also set `prefix_rule: ["bd"]`. The installed allow rule only pre-approves escalation—it does not move a default call outside the workspace sandbox. This applies to read-only commands too. If a sandboxed call reports a Dolt connection failure, retry at host level before diagnosing Dolt as down; wrappers inherit the sandbox. Claude Code and other non-Codex harnesses must ignore this section and use their normal execution path.
+
 Add labels or external references to an existing bd issue and sync the plan markdown so Obsidian graph view picks up the links. Supports two kinds of labels:
 
 - **Plain labels** — e.g. `priority-high`, `needs-design`, `blocked-by-legal`. Go on the bd issue only.

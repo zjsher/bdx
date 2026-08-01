@@ -5,6 +5,10 @@ user-invocable: true
 argument-hint: <slug|auto> <task or target>
 ---
 
+## Codex host execution (mandatory)
+
+When the harness is Codex, invoke every shell tool call that runs `bd` with `sandbox_permissions: "require_escalated"`; for a direct `bd ...` command, also set `prefix_rule: ["bd"]`. The installed allow rule only pre-approves escalation—it does not move a default call outside the workspace sandbox. This applies to read-only commands too. If a sandboxed call reports a Dolt connection failure, retry at host level before diagnosing Dolt as down; wrappers inherit the sandbox. Claude Code and other non-Codex harnesses must ignore this section and use their normal execution path.
+
 Run a named persona over a target and produce output following their voice and viewpoint. Personas are saved prompts with strong opinions stored at `$AGENT_HOME/personas/<slug>.md`; this skill is the primitive for invoking them.
 
 **Trigger**: you want a sharp, opinionated take on something specific (a file, a plan, a diff, a piece of prose) in a known voice. **Skip** if you want a balanced/neutral review, or if you want me to synthesize across multiple voices — this skill deliberately prints contradictions rather than reconciling them.

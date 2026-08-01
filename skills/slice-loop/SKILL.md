@@ -6,6 +6,10 @@ user-invocable: true
 argument-hint: '<goal: "until phase 5-6 complete" | bd-id | plan path> [--fast] [--max N] [--quota N] [--audit-every N] [--model <tier>] [--audit-model <tier>] [--escalate-model <tier>] [--ultra]'
 ---
 
+## Codex host execution (mandatory)
+
+When the harness is Codex, invoke every shell tool call that runs `bd` with `sandbox_permissions: "require_escalated"`; for a direct `bd ...` command, also set `prefix_rule: ["bd"]`. The installed allow rule only pre-approves escalation—it does not move a default call outside the workspace sandbox. This applies to read-only commands too. If a sandboxed call reports a Dolt connection failure, retry at host level before diagnosing Dolt as down; wrappers inherit the sandbox. Claude Code and other non-Codex harnesses must ignore this section and use their normal execution path.
+
 # slice-loop
 
 Execute a plan as an **orchestrated converge loop**: a lean parent (this session) spawns one worker subagent at a time; each worker runs a fixed quota of slice -> slice-review iterations, then retires at a planned seam where the parent runs a **mechanism-level audit** — the one review class the slice/slice-review pairing deliberately filters out. Repeat until the caller's goal is met, a halt trigger routes to the human, or the bound trips.
