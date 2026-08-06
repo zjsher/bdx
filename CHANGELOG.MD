@@ -1,3 +1,10 @@
+## v0.10.2 (2026-08-01)
+
+### 🛠️ Improvements
+- [commits] Added structural build (bd) configuration for codex running on host machine
+
+**Note:** No code diffs were provided with this commit—only the commit message "codex structural bd on host machine" was available for analysis. A more detailed changelog would require access to the actual file changes to accurately describe functions, components, or capabilities affected.
+
 ## v0.10.1 (2026-08-01)
 
 ### 📦 Release Notes — v0.10.1

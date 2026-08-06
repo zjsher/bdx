@@ -6,7 +6,7 @@
 
 A running agent session holds a lot of working memory - the plan, what got tried, what was rejected and why. The moment the session ends, all of that evaporates. bdx couples every [`bd` (beads)](https://github.com/gastownhall/beads) task to durable markdown - plans, mid-stream context dumps, summaries - keyed by bd-id and stored in `$AGENT_HOME` so [Obsidian graph view](https://help.obsidian.md/Plugins/Graph+view) can show how tasks, decisions, and knowledge correlate across projects.
 
-On top of that record sits an implementation discipline. [`build-loop`](#implementing-features) is the default: lock the design, keep one implementer in context, verify each coherent behavior with tight executable feedback, persist only meaningful milestones, then run one fresh review at the goal boundary. `slice-loop` is the higher-assurance feature for risky work that earns repeated independent review and a per-slice audit trail.
+On top of that record sits an implementation discipline. [`build-loop`](#implementing-features) is the default: lock the design, keep one implementer in context, verify each coherent behavior with tight executable feedback, persist meaningful milestones, then run one fresh review at the goal boundary. `slice-loop` supplies independent review and an audit trail for each increment when the change requires that assurance.
 
 This is my current ideal agent coding workflow, and it has served me well.
 
@@ -52,11 +52,11 @@ plan → attach → build-loop → close
 
 ## Implementing features
 
-The lifecycle skills answer "where does the record live?"; the implementation skills answer "how does the work land?" `build-loop` is the ordinary default. Reach for more ceremony only when the risk or review requirement earns it.
+The lifecycle skills answer "where does the record live?"; the implementation skills answer "how does the work land?" `build-loop` is the ordinary default. Choose `slice-loop` when the required evidence belongs at every increment rather than one milestone boundary.
 
-**`/bdx:build-loop`** implements a planned feature through one tight, design-gated loop. Before editing, it locks the observable outcome, invariants, existing seam, executable check, and non-goals. One implementer then adds coherent behavior, runs the narrowest deterministic check plus a cheap end-to-end heartbeat, and continues without per-increment reviewers, report cards, ledger rows, or Beads comments. Completed plan outcomes, material decisions, blockers, and resumable handoffs remain durable. At the requested goal boundary it runs the broader relevant gate plus one fresh `quality-audit light` review.
+**`/bdx:build-loop`** implements a planned milestone through one tight, design-gated loop. Before editing, it locks the observable behavior, invariant, existing seam, and executable proof. One implementer adds coherent behavior and runs the narrowest deterministic check, plus an end-to-end heartbeat when that proof exercises a different path. Completed plan outcomes, material decisions, blockers, and resumable handoffs remain durable. At the milestone boundary it runs the broader relevant gate plus one fresh `quality-audit light` review.
 
-`build-loop` halts on an unresolved consequential decision, the same failure twice, an unverifiable acceptance signal, degraded context, or its behavioral bound. It also stops and recommends `slice-loop` before changing authentication, authorization, tenancy, money, deletion, migrations, crash recovery, distributed concurrency, irreversible external effects, cross-repository state machines, weak/subjective test oracles, or anything that must be audited increment by increment. You can explicitly accept the lighter assurance tradeoff and continue, but the boundary review then stays mandatory.
+Choose between the loops from properties of the change, not its business domain. `build-loop` fits when deterministic checks and one independent milestone review can prove the result. Reach for `slice-loop` when important state or interactions cannot be exercised reliably at the milestone gate, a mistake would be difficult to detect or reverse before affecting others, consequential choices need review as the implementation grows, or policy requires independent evidence for each increment.
 
 **`/bdx:skeleton`** is that walking skeleton on its own, ceremony stripped - the thinnest end-to-end path that actually runs, built fast with no ledger, no bd, no per-step review. It's the compressed front-half of `slice` for when a *running thing* is the win and wall-clock matters: spikes, prototypes, demos, timed interviews, or the opening move before you switch to `slice` for rigor. Verify once at the end (it runs), emit a short note, hand off. Re-invoke `/bdx:skeleton <next step>` to thicken the spine in the same fast mode - it detects a running spine and never rebuilds it, re-running one end-to-end check per increment as a keep-it-green heartbeat; `new` forces a fresh spine.
 
@@ -64,7 +64,7 @@ The lifecycle skills answer "where does the record live?"; the implementation sk
 
 **`/bdx:slice-review`** closes the slice with a review that runs exactly one round. Reviewers told to "find what's wrong" manufacture speculative findings rather than report an empty list; slice-review inverts the contract - every finding needs a concrete failure scenario and a CONFIRMED/PLAUSIBLE verdict, an empty findings list is a PASS, only CONFIRMED blocks, PLAUSIBLE goes to the backlog. Optionally borrows a saved persona (`$AGENT_HOME/personas/`) as its lens.
 
-**`/bdx:slice-loop`** is the high-assurance feature. It runs the slice/review pair autonomously until a goal is met - "until phase 5-6 complete", "until the plan is done", or a bd-id's remaining checkboxes. A lean parent session spawns worker subagents that each run a quota of slice → slice-review iterations and retire fresh, with a mechanism-level quality audit at every handoff. That serial assurance is intentionally slower: use it when a defect can cross a security, tenancy, money, deletion, migration, recovery, or audit boundary and the per-slice evidence is worth the wall-clock cost.
+**`/bdx:slice-loop`** runs the slice/review pair autonomously until a goal is met - "until phase 5-6 complete", "until the plan is done", or a bd-id's remaining checkboxes. A lean parent session spawns worker subagents that each run a quota of slice → slice-review iterations and retire fresh, with a mechanism-level quality audit at every handoff. Use it when independent evidence at each increment is part of the completion standard rather than an optional final check.
 
 The trade is a ceremony dial. `skeleton` is the throwaway-fast end: a running spine, one check, no durable trail. `build-loop` is the production default: durable milestones, tight checks, one boundary review. `slice` keeps your judgment visible after every defensible increment. `slice-loop` autonomously pays the full per-slice assurance cost. Same spine-first instinct; different evidence budgets.
 
@@ -84,7 +84,7 @@ The trade is a ceremony dial. `skeleton` is the throwaway-fast end: a running sp
 - `skeleton` - build the thinnest end-to-end running spine fast, zero ceremony, verify once that it runs, hand off. The compressed front-half of `slice`.
 - `slice` - implement one bounded, verifiable increment (walking-skeleton first), verify with an executable check, log to the decision ledger, halt.
 - `slice-review` - review the landed slice in exactly one round under a constrained finding-contract; empty findings = PASS.
-- `slice-loop` - high-assurance autonomous feature execution: orchestrate slice ⇄ slice-review via worker subagents with quality audits at every handoff.
+- `slice-loop` - per-increment autonomous feature assurance: orchestrate slice ⇄ slice-review via worker subagents with quality audits at every handoff.
 - `care` - inject the "what you care about" index: ~40 named failure/quality anchors (bad inputs, races, instance death, tenancy, seams...) that widen the active agent's attention before a review or a thicken run. Point it at a custom index (`/care path/to/index.md`, or a name in `$AGENT_HOME/care/`) to swap in a domain-specific list. A lens, not a license - findings still need the finding-contract, and implementation-side concerns go to Deferred, never into unasked code.
 
 **Less common:**
