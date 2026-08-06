@@ -1,7 +1,7 @@
 {
   "name": "bdx",
   "version": "0.10.3",
-  "description": "Beads workflow skills and hooks for durable task planning, implementation, review, handoff, and closure.",
+  "description": "Beads workflow skills and hooks for durable planning, lightweight feature builds, high-assurance review, handoff, and closure.",
   "author": {
     "name": "Zach Sherbondy",
     "url": "https://github.com/zeejers"
@@ -18,7 +18,7 @@
   "interface": {
     "displayName": "bdx",
     "shortDescription": "Durable Beads workflows for coding agents",
-    "longDescription": "Plan, attach, implement, review, summarize, and close Beads tasks with durable artifacts and lifecycle guardrails.",
+    "longDescription": "Plan, attach, build ordinary features in a tight durable loop, escalate risky work to high-assurance slices, then summarize and close Beads tasks.",
     "developerName": "Zach Sherbondy",
     "category": "Productivity",
     "capabilities": [
@@ -29,7 +29,8 @@
     "defaultPrompt": [
       "Plan this work as a durable Beads task.",
       "Attach this session to an existing Beads task.",
-      "Implement the next reviewed slice of this task."
+      "Build the next planned feature milestone with tight feedback and durable progress.",
+      "Run high-assurance slices for this risky feature."
     ]
   }
 }

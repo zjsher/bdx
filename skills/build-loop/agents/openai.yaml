@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build Loop"
+  short_description: "Build planned features with tight feedback"
+  default_prompt: "Use $build-loop to implement the next planned feature milestone with tight checks and durable progress."
