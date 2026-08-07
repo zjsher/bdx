@@ -172,6 +172,11 @@ sessions:
 ## Verification
 <How we'll know this is done — tests, manual checks, acceptance criteria.>
 
+## Log
+<Append-only. One timestamped line per thing learned mid-flight. Written by
+`bdx-note "<text>"` — do not hand-maintain, and omit the section at creation
+time; the first note creates it.>
+
 ## Related
 - [[bd-yyy]] — <relationship>
 - [[summary/<prior-slug>--<date>]]
@@ -185,6 +190,7 @@ sessions:
 - **Capture decisions already made, separately from open questions.** Future-you needs to distinguish "settled" from "pending."
 - **Don't bloat.** A plan is a handoff, not a design doc. If a section is empty, omit it — don't leave stub "TBD" lines.
 - **Every cross-reference is a wikilink.** If you catch yourself writing `[text](path.md)` for a vault note, convert it.
+- **Narrative goes here, never into bd's text fields.** `bd note` and `--notes`/`--design`/`--context`/`--acceptance` are blocked by a `PreToolUse` hook: nothing in the workflow reads them, and they can't be edited in place. Mid-flight findings go to `## Log` via `bdx-note "<text>"`. `bd comment` stays available for *pointers* (summary/context paths, progress echoes) — `attach` reads those back at boot.
 - **One plan per bd-id.** If the task's shape has fundamentally changed, close the old bd and `plan` a new one rather than rewriting history.
 - **`private: false` by default.** Flip to `true` for side-project/personal plans that shouldn't sync to teammates. The sync layer (not this skill) honors the flag — the skill just writes it.
 

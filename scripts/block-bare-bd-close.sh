@@ -31,7 +31,10 @@ fi
 
 # Match `bd close` or `bd update ... --status closed` anywhere in the command
 # (chaining with && ; || | all handled via the leading-boundary class)
-BOUNDARY='(^|[[:space:];&|])'
+# Only match `bd` in *command position*: start of a line, or after a shell
+# separator. A plain space is deliberately NOT a boundary — otherwise
+# `git commit -m "block bd close"` trips the guard.
+BOUNDARY='(^|[;&|(])[[:space:]]*'
 if printf '%s' "$CMD" | grep -Eq "${BOUNDARY}bd[[:space:]]+close\b" \
   || printf '%s' "$CMD" | grep -Eq "${BOUNDARY}bd[[:space:]]+update\b.*--status[[:space:]=]+closed\b"; then
   cat >&2 <<'EOF'

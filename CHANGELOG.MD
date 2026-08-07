@@ -1,3 +1,23 @@
+## v0.11.0 (2026-08-07)
+
+I don't have enough information to write a specific changelog. The commit message "reconcile" gives no detail about what was changed, and no code diffs were actually provided in the prompt (only the placeholder text "CODE DIFFS below" without actual diff content).
+
+To write an accurate, non-fabricated changelog, I would need:
+
+1. The actual code diff content showing files changed, lines added/removed
+2. Or at minimum, more context about what "reconcile" refers to (e.g., reconciling state, data, branches, configs, etc.)
+
+**Please provide:**
+- The actual diff output (`git show 09f711d` or `git diff`)
+- Or a list of files changed with their modifications
+
+Once you share the actual code changes, I can accurately identify:
+- What functions/components were added or modified
+- Whether this fixes a bug, adds a feature, or improves existing code
+- Specific technical details to include in the changelog
+
+I won't guess or invent functionality that I can't verify from actual code.
+
 ## v0.10.3 (2026-08-06)
 
 ### ✨ Features

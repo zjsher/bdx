@@ -11,7 +11,7 @@ When the harness is Codex, invoke every shell tool call that runs `bd` with `san
 
 Snapshot the current session's head-state to `$AGENT_HOME/context/` so the user can close the session without losing the thread — a future `attach` re-enters cold and picks up where this left off. Written as an **Obsidian-friendly note**: graph view shows how the dump connects to summaries, plans, files, concepts, and tickets, so every in-vault cross-reference is a wikilink (`[[...]]`).
 
-Trigger is *the act of leaving*, not "mid-flight notes". If the user is still actively working but a step just finished, prefer `check` (cheap, ticks one checkbox) or a `bd comment` (state). `dump` is for the moment before context is lost.
+Trigger is *the act of leaving*, not "mid-flight notes". If the user is still actively working but a step just finished, prefer `check` (cheap, ticks one checkbox) or `bdx-note "<text>"` (one line into the plan's `## Log`). `dump` is for the moment before context is lost.
 
 This is broader and lossier than `summarize` — it captures conversational state (what the user wants, what's been tried, what's pending) rather than a clean post-implementation writeup. If the work is *done*, run `summarize` instead.
 
@@ -121,7 +121,7 @@ related:
 
 ## Rules
 
-- **The trigger is leaving, not noting.** If the user is still working, write a `bd comment` or edit the plan instead. `dump` exists so the user can log out cold without losing the thread.
+- **The trigger is leaving, not noting.** If the user is still working, run `bdx-note "<text>"` or edit the plan instead. `dump` exists so the user can log out cold without losing the thread.
 - **Prefer signal over volume.** Skip chitchat, resolved detours, and anything trivially re-derivable from the repo.
 - **Preserve verbatim what matters verbatim.** Exact error messages, exact user phrasing on preferences, exact command outputs — paste these, don't paraphrase.
 - **Don't invent.** If you don't know a section's answer, write "unknown" or omit. Never guess.

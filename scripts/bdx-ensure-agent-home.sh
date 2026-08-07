@@ -15,9 +15,15 @@ AGENT_HOME="${AGENT_HOME:-$AGENT_HOME_DEFAULT}"
 # Ensure the canonical subdirs exist (idempotent)
 mkdir -p "$AGENT_HOME/plan" "$AGENT_HOME/context" "$AGENT_HOME/summary" "$AGENT_HOME/inbox"
 
-# Propagate to downstream tool calls in this session
+# Propagate to downstream tool calls in this session, and put the plugin's
+# scripts/ on PATH so `bdx-note` (and `bdc`) are callable by name without the
+# user having symlinked anything. The narrative-write hook tells agents to run
+# `bdx-note ...`; that instruction has to actually resolve.
+SCRIPTS_DIR=$(cd "$(dirname "$0")" && pwd)
+
 if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
   echo "export AGENT_HOME=$AGENT_HOME" >> "$CLAUDE_ENV_FILE"
+  echo "export PATH=\"$SCRIPTS_DIR:\$PATH\"" >> "$CLAUDE_ENV_FILE"
 fi
 
 exit 0

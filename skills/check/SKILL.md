@@ -26,7 +26,7 @@ Flip one or more `- [ ]` checkboxes to `- [x]` on the bd's plan file. The cheap 
 
 ## Annotation rules (`--note`)
 
-The `--note` flag is for *small* divergences from the original spec — a renamed file, a slightly different path, a swapped library. Anything bigger belongs in `summarize` or a `bd comment`, not on the checkbox.
+The `--note` flag is for *small* divergences from the original spec — a renamed file, a slightly different path, a swapped library. Anything bigger belongs in `summarize` or a `bdx-note` line in the plan's `## Log`, not on the checkbox.
 
 - **One line, no markdown beyond inline code.** `→ moved to /api/v2/users` ✓ · `→ See discussion in $AGENT_HOME/context/...` ✗
 - **Append, never replace.** The original checkbox text stays intact; the note follows the ` → ` separator.

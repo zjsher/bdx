@@ -139,6 +139,19 @@ CTX=$(mktemp)
     echo "$COMMENTS"
     echo '```'
   fi
+
+  # Counter-instruction to `bd prime`, which lands in this same turn-1 context
+  # advertising `bd update <id> --notes/--design`. Stated here so the agent
+  # picks the right channel up front instead of discovering it via a block.
+  echo
+  echo "## Where writes go"
+  echo
+  echo "- Learned something mid-flight -> \`bdx-note \"<text>\"\` (appends to the plan's \`## Log\`)"
+  echo "- Plan step finished -> \`/bdx:check $BD_ID \"<step>\"\`"
+  echo "- Leaving mid-task -> \`/bdx:dump\`"
+  echo "- Pointer for the bd thread -> \`bd comment $BD_ID \"...\"\`"
+  echo
+  echo "\`bd note\` and \`bd create|update --notes/--design/--context/--acceptance\` are blocked by a PreToolUse hook: nothing in this workflow reads those fields. Narrative lives in the plan."
 } > "$CTX"
 
 jq -Rs --arg title "bd-attached: $BD_ID" '{

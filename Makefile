@@ -1,4 +1,4 @@
-.PHONY: patch minor major release help test-install test-install-shell test-install-permissions
+.PHONY: patch minor major release help test test-install test-install-shell test-install-permissions test-hooks
 
 # Pick docker or fall back to podman so the test targets work for either runtime.
 DOCKER ?= $(shell command -v docker 2>/dev/null || command -v podman 2>/dev/null)
@@ -15,6 +15,10 @@ help:
 	@echo "Each target: bumps Claude + Codex plugin.json versions in lockstep, runs"
 	@echo "  git add . && lazy-changelog --prepend CHANGELOG.md"
 	@echo "Then review + commit + tag + push manually."
+	@echo ""
+	@echo "Testing:"
+	@echo "  make test                   # everything that runs without docker"
+	@echo "  make test-hooks             # PreToolUse guards + bdx-note end-to-end"
 	@echo ""
 	@echo "Installer testing (clean-slate container):"
 	@echo "  make test-install           # run scripts/install.sh in a fresh $(TEST_IMAGE)"
@@ -61,3 +65,11 @@ test-install-shell:
 
 test-install-permissions:
 	@bash dev/test-install-permissions.sh
+
+# Block/allow matrix for the PreToolUse guards + bdx-note end-to-end.
+# No container needed — runs in ~1s against a throwaway $AGENT_HOME.
+test-hooks:
+	@bash dev/test-narrative-hook.sh
+
+# Everything that runs without docker.
+test: test-hooks

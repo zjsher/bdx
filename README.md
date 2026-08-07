@@ -46,7 +46,7 @@ plan → attach → build-loop → close
 
 **3. Build.** Run `/bdx:build-loop bd-abc` (or name a phase/goal). The agent locks a compact design contract, implements coherent behavior in one continuous context, runs narrow checks as it goes, ticks only completed plan outcomes, and performs one fresh review at the goal boundary.
 
-**4. Track or hand off.** Peek at the plan anytime to see what's done. `/bdx:check bd-abc "<step>"` is the cheap manual progress primitive. About to log out mid-goal? `/bdx:dump` snapshots head-state to `$AGENT_HOME/context/`; the next `/bdx:attach` pulls it back in.
+**4. Track or hand off.** Peek at the plan anytime to see what's done. `/bdx:check bd-abc "<step>"` is the cheap manual progress primitive. Learned something mid-flight? `bdx-note "the retry loop leaks a socket on 429"` appends one timestamped line to the plan's `## Log` — one command, no skill load, and it works for humans in the same terminal. About to log out mid-goal? `/bdx:dump` snapshots head-state to `$AGENT_HOME/context/`; the next `/bdx:attach` pulls it back in.
 
 **5. Close.** Finish the work, then `/bdx:close bd-abc` writes a summary to `$AGENT_HOME/summary/`, attributes decisions to agent vs user, and closes the bd issue with a one-line resolution. The plugin's `PreToolUse` hook blocks bare `bd close` so you can't accidentally skip the writeup.
 
@@ -177,9 +177,26 @@ The plan stays close to its original shape - it's the prompt, and the diff `plan
 
 - **`SessionStart`** → `capture-session-id.sh` records a harness-qualified identity such as `"claude-code:<uuid>"` or `"codex:<uuid>"` for `sessions:` frontmatter. It exports `$BDX_SESSION_ID` when the host supports persistent hook environment updates and otherwise injects the value into session context. Set `BDX_HARNESS=<slug>` to identify another hook-compatible host; undetected hosts use `"unknown:<id>"`.
 - Resume a recorded session by splitting the prefix from the id: `claude --resume <id>` for `claude-code:` or `codex resume <id>` for `codex:`.
-- **`SessionStart`** → `bdx-ensure-agent-home.sh` resolves `$AGENT_HOME`, auto-creates the subdir layout, and exports the value.
+- **`SessionStart`** → `bdx-ensure-agent-home.sh` resolves `$AGENT_HOME`, auto-creates the subdir layout, exports the value, and puts the plugin's `scripts/` on `$PATH` so `bdx-note` and `bdc` are callable by name.
 - **`SessionStart:startup`** → `bd-auto-attach.sh` if `$BD_ID` is set, auto-loads plan/context/summary, appends the harness-qualified session identity to `sessions:`, flips bd status `open → in_progress`, and emits the bundle as `additionalContext` on turn 1.
 - **`PreToolUse:Bash`** → `block-bare-bd-close.sh` blocks direct `bd close` so you're forced through `/bdx:close`.
+- **`PreToolUse:Bash`** → `block-bd-narrative-writes.sh` blocks `bd note`, `bd edit`, and `--notes` / `--append-notes` / `--design` / `--design-file` / `--context` / `--acceptance` on `bd create|update`, and prints the exact `bdx-note` command to run instead.
+
+Why that last one is a hook and not a documented convention: `bd prime` runs at every `SessionStart` and puts *"`bd update <id> --title/--description/--notes/--design`"* into turn-1 context. An instruction the harness re-injects every session outranks prose sitting in a skill file that only loads when invoked — agents writing narrative into bd aren't ignoring bdx, they're obeying bd. Only a deterministic block changes the outcome.
+
+Three things it deliberately leaves alone:
+
+| Still allowed | Why |
+| --- | --- |
+| `bd comment` | Load-bearing. `attach` reads the comment thread at boot; `dump` / `summarize` / `triage` / `check` / `slice-loop` write pointers into it. Comments are the bd-side index, the plan is the prose. |
+| `-d` / `--description` | `plan` writes the plan pointer through it. |
+| `bd remember` | Cross-session knowledge, a different layer from task narrative. |
+
+### Note primitive
+
+`bdx-note [bd-id] "<text>"` appends one timestamped line to the `## Log` section of `$AGENT_HOME/plan/<bd-id>-*.md`, creating the section on first use. `bd-id` defaults to `$BD_ID`, then to the only `in_progress` bd that has a plan. Multi-line text stays inside the bullet. `-q` silences the confirmation.
+
+It exists so the block above has somewhere equally cheap to point: if the sanctioned path costs more than `bd note` did, agents just reach for the escape hatch.
 
 ### Launcher
 
@@ -203,6 +220,7 @@ The Quickstart installer offers to seed these at step 5/5.
 
 - `BD_ID` unset → SessionStart hook is a silent no-op
 - `BDX_ALLOW_BARE_BD_CLOSE=1 bd close bd-abc` → bypass the close guard once
+- `BDX_ALLOW_BD_NARRATIVE=1 bd note bd-abc "..."` → bypass the narrative guard once
 
 ### Prerequisites
 
