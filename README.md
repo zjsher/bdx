@@ -92,6 +92,7 @@ The trade is a ceremony dial. `skeleton` is the throwaway-fast end: a running sp
 - `summarize` - write the durable post-implementation record to `$AGENT_HOME/summary/`. Usually invoked by `close`; standalone-callable when you want the writeup before closing. Runs on sonnet and skips persona reviews by default; pass `--personas` for an inline review pass, or `--deep` to run it on opus. `close` forwards both flags.
 - `scope` - retrofit an existing bd (no plan, no project label) into the lifecycle. Use when a bd was created bare via phone capture or `bd create`.
 - `triage` - drain inbox + unscoped-bd queues into structured tasks. Hands off to `plan` or `scope`.
+- `reconcile` - the reverse of `triage`: check the open queue against `$AGENT_HOME` notes and the real code at each manifest path, then propose what should close *and* which plan checkboxes the code already satisfies. Every close and every tick carries a quoted probe result from the codebase; prose overlap alone lands in the Ask bucket. `--boxes` runs the cheap tick-only sweep. Proposes only - closing routes through `close`, ticking through `check`.
 - `label` - apply plain labels or namespaced external refs (`jira:`, `linear:`, `gh:`, `figma:`); namespaced refs propagate into the plan's frontmatter.
 - `manifest` - register or update a project entry in `$AGENT_HOME/manifest.md` so `plan`/`scope` can validate labels against it.
 - `persona` - invoke a saved reviewer voice over a target (file, bd-id, diff, prose). Used by `summarize` under `--personas` / `--deep`.
@@ -167,6 +168,8 @@ The rule **pre-approves** an explicit host-execution request; it does not automa
                                                                        │
                                             (terminal) ────────────────┘
 ```
+
+`reconcile` closes the loop the other way round: when sessions ship work and never reach `close`, it walks the open queue, probes the code at each manifest path, and feeds proven-done issues back into `close` / `bd supersede`.
 
 The plan stays close to its original shape - it's the prompt, and the diff `plan ↔ summary` is "what we set out to do" vs "what shipped." `check`, `dump`, and `summarize` may all tick `- [ ]` boxes (with optional `→ <divergence>` annotations) so the plan stays a live progress view. None of them rewrite plan prose.
 

@@ -1,3 +1,12 @@
+## v0.10.3 (2026-08-06)
+
+### ✨ Features
+- [commits] Added a lightweight build loop for the agent coding workflow
+
+### 🛠️ Improvements
+- [commits] Iterated on the build-loop implementation with follow-up refinements
+- [commits] Added research documentation on lightweight agent coding loops to inform design decisions
+
 ## v0.10.2 (2026-08-01)
 
 ### 🛠️ Improvements
