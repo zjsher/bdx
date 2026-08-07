@@ -1,3 +1,17 @@
+## v0.12.0 (2026-08-07)
+
+I'm unable to generate meaningful release notes from the information provided. Here's why:
+
+**Issue:** The only commit message is "ntoe" (appears to be a typo, possibly for "note"), and no code diffs were included in the input for analysis.
+
+**What I need to write accurate release notes:**
+1. The actual code diffs showing what files/functions were changed
+2. Or a more descriptive commit message explaining the change
+
+Without this information, I cannot responsibly describe features, fixes, or improvements — doing so would mean fabricating content, which violates the core instruction to describe only what's actually in the code.
+
+**Suggestion:** Please provide the `git diff` or `git show` output for commit `e6833df`, and I'll write a precise, accurate changelog entry based on the real changes.
+
 ## v0.11.0 (2026-08-07)
 
 I don't have enough information to write a specific changelog. The commit message "reconcile" gives no detail about what was changed, and no code diffs were actually provided in the prompt (only the placeholder text "CODE DIFFS below" without actual diff content).
