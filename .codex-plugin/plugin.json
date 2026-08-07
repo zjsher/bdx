@@ -1,6 +1,6 @@
 {
   "name": "bdx",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "Beads workflow skills and hooks for durable planning, lightweight feature builds, per-increment assurance, handoff, and closure.",
   "author": {
     "name": "Zach Sherbondy",
