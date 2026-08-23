@@ -1,4 +1,4 @@
-.PHONY: patch minor major release help test test-install test-install-shell test-install-permissions test-hooks
+.PHONY: patch minor major release help test test-install test-install-shell test-install-permissions test-hooks test-linear
 
 # Pick docker or fall back to podman so the test targets work for either runtime.
 DOCKER ?= $(shell command -v docker 2>/dev/null || command -v podman 2>/dev/null)
@@ -19,6 +19,7 @@ help:
 	@echo "Testing:"
 	@echo "  make test                   # everything that runs without docker"
 	@echo "  make test-hooks             # PreToolUse guards + bdx-note end-to-end"
+	@echo "  make test-linear            # Linear projection discovery + privacy boundary"
 	@echo ""
 	@echo "Installer testing (clean-slate container):"
 	@echo "  make test-install           # run scripts/install.sh in a fresh $(TEST_IMAGE)"
@@ -71,5 +72,8 @@ test-install-permissions:
 test-hooks:
 	@bash dev/test-narrative-hook.sh
 
+test-linear:
+	@bash dev/test-linear-projection.sh
+
 # Everything that runs without docker.
-test: test-hooks
+test: test-hooks test-linear

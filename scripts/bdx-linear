@@ -1,0 +1,258 @@
+#!/usr/bin/env bash
+# bdx-linear — privacy-safe Linear projection for bdx artifacts.
+
+set -eu
+
+MIN_BD_VERSION="1.2.2"
+
+usage() {
+  cat >&2 <<'EOF'
+usage: bdx-linear status [--json] [--agent-home <path>]
+
+Inspect bd Linear compatibility and discover artifacts eligible for a future
+projection. status is read-only: it never invokes bd linear sync/push/pull or
+the Linear API directly.
+EOF
+}
+
+die() {
+  printf 'bdx-linear: %s\n' "$*" >&2
+  exit 2
+}
+
+need() {
+  command -v "$1" >/dev/null 2>&1 || die "required command not found: $1"
+}
+
+version_at_least() {
+  local current="$1" required="$2"
+  awk -v current="$current" -v required="$required" 'BEGIN {
+    split(current, c, ".")
+    split(required, r, ".")
+    for (i = 1; i <= 3; i++) {
+      if ((c[i] + 0) > (r[i] + 0)) exit 0
+      if ((c[i] + 0) < (r[i] + 0)) exit 1
+    }
+    exit 0
+  }'
+}
+
+trim_scalar() {
+  TRIMMED="$1"
+  SCALAR_QUOTED=false
+  TRIMMED="${TRIMMED#"${TRIMMED%%[![:space:]]*}"}"
+  TRIMMED="${TRIMMED%"${TRIMMED##*[![:space:]]}"}"
+  if [ "${#TRIMMED}" -ge 2 ]; then
+    case "$TRIMMED" in
+      \"*\") TRIMMED="${TRIMMED#\"}"; TRIMMED="${TRIMMED%\"}"; SCALAR_QUOTED=true ;;
+      \'*\') TRIMMED="${TRIMMED#\'}"; TRIMMED="${TRIMMED%\'}"; SCALAR_QUOTED=true ;;
+    esac
+  fi
+  if [ "$SCALAR_QUOTED" = false ]; then
+    TRIMMED="${TRIMMED%%#*}"
+    TRIMMED="${TRIMMED%"${TRIMMED##*[![:space:]]}"}"
+  fi
+}
+
+json_escape() {
+  JSON_ESCAPED="$1"
+  JSON_ESCAPED="${JSON_ESCAPED//\\/\\\\}"
+  JSON_ESCAPED="${JSON_ESCAPED//\"/\\\"}"
+  JSON_ESCAPED="${JSON_ESCAPED//$'\n'/\\n}"
+  JSON_ESCAPED="${JSON_ESCAPED//$'\r'/\\r}"
+  JSON_ESCAPED="${JSON_ESCAPED//$'\t'/\\t}"
+}
+
+parse_artifact() {
+  local kind="$1" path="$2" output="$3"
+  local line first=1 in_frontmatter=0 ended=0 bd_count=0 privacy_count=0
+  local raw_key normalized_key indented_value frontmatter_syntax_invalid=false indent_allowed=false
+  local bd_id="" private="" privacy_quoted=false eligible=false reason=""
+  local escaped_kind escaped_path escaped_bd escaped_reason
+
+  while IFS= read -r line || [ -n "$line" ]; do
+    if [ "$first" = 1 ]; then
+      first=0
+      [ "$line" = "---" ] || break
+      in_frontmatter=1
+      continue
+    fi
+    [ "$in_frontmatter" = 1 ] || break
+    if [ "$line" = "---" ]; then
+      ended=1
+      break
+    fi
+    case "$line" in
+      ''|'#'*) continue ;;
+      [[:space:]]*)
+        indented_value="${line#"${line%%[![:space:]]*}"}"
+        case "$indented_value" in ''|'#'*) continue ;; esac
+        [ "$indent_allowed" = true ] || frontmatter_syntax_invalid=true
+        continue
+        ;;
+    esac
+    if [[ "$line" =~ ^[[:alpha:]][[:alnum:]_-]*: ]]; then
+      raw_key="${line%%:*}"
+      trim_scalar "$raw_key"
+      normalized_key="$TRIMMED"
+      trim_scalar "${line#*:}"
+      case "$TRIMMED" in
+        ''|'|'|'|-'|'|+'|'>'|'>-'|'>+') indent_allowed=true ;;
+        *) indent_allowed=false ;;
+      esac
+      case "$normalized_key" in
+        bd)
+          bd_count=$((bd_count + 1))
+          trim_scalar "${line#*:}"
+          bd_id="$TRIMMED"
+          ;;
+        private)
+          privacy_count=$((privacy_count + 1))
+          trim_scalar "${line#*:}"
+          private="$TRIMMED"
+          privacy_quoted="$SCALAR_QUOTED"
+          ;;
+      esac
+    else
+      frontmatter_syntax_invalid=true
+    fi
+  done < "$path"
+
+  if [ "$ended" != 1 ]; then
+    reason="invalid_frontmatter"
+  elif [ "$frontmatter_syntax_invalid" = true ]; then
+    reason="noncanonical_frontmatter"
+  elif [ "$bd_count" -eq 0 ]; then
+    reason="missing_bd"
+  elif [ "$bd_count" -ne 1 ]; then
+    reason="duplicate_bd"
+  elif ! [[ "$bd_id" =~ ^[[:alnum:]][[:alnum:]_.-]*-[[:alnum:]]+$ ]]; then
+    reason="invalid_bd"
+  elif [ "$privacy_count" -eq 0 ]; then
+    reason="missing_privacy"
+  elif [ "$privacy_count" -ne 1 ]; then
+    reason="duplicate_privacy"
+  elif [ "$privacy_quoted" = true ] || [ "$private" != "false" ]; then
+    case "$private" in
+      true) reason="private" ;;
+      *) reason="invalid_privacy" ;;
+    esac
+  elif [ "$kind" = "context" ]; then
+    reason="context_requires_opt_in"
+  else
+    eligible=true
+  fi
+
+  json_escape "$kind"; escaped_kind="$JSON_ESCAPED"
+  json_escape "$path"; escaped_path="$JSON_ESCAPED"
+  json_escape "$bd_id"; escaped_bd="$JSON_ESCAPED"
+  json_escape "$reason"; escaped_reason="$JSON_ESCAPED"
+  printf '{"kind":"%s","path":"%s","bd":"%s","eligible":%s,"reason":"%s"}\n' \
+    "$escaped_kind" "$escaped_path" "$escaped_bd" "$eligible" "$escaped_reason" >> "$output"
+}
+
+discover_dir() {
+  local kind="$1" dir="$2" output="$3" path
+  [ -d "$dir" ] || return 0
+  for path in "$dir"/*.md; do
+    [ -e "$path" ] || continue
+    parse_artifact "$kind" "$path" "$output"
+  done
+}
+
+status_command() {
+  local json=0 agent_home="${AGENT_HOME:-$HOME/.bdx-agent}"
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --json|-j) json=1; shift ;;
+      --agent-home)
+        [ $# -ge 2 ] || die "--agent-home requires a path"
+        agent_home="$2"; shift 2 ;;
+      -h|--help) usage; exit 0 ;;
+      *) die "unknown status option: $1" ;;
+    esac
+  done
+
+  need jq
+  need bd
+
+  local tmp artifacts_json bd_raw bd_version mutation_ready linear_status linear_available result
+  tmp=$(mktemp -d "${TMPDIR:-/tmp}/bdx-linear.XXXXXX") || exit 1
+  BDX_LINEAR_TMP="$tmp"
+  trap 'rm -rf "$BDX_LINEAR_TMP"' EXIT
+  : > "$tmp/artifacts.ndjson"
+
+  discover_dir plan "$agent_home/plan" "$tmp/artifacts.ndjson"
+  discover_dir summary "$agent_home/summary" "$tmp/artifacts.ndjson"
+  discover_dir context "$agent_home/context" "$tmp/artifacts.ndjson"
+  artifacts_json=$(jq -s '.' "$tmp/artifacts.ndjson")
+
+  bd_raw=$(bd version 2>/dev/null || true)
+  bd_version=$(printf '%s' "$bd_raw" | sed -nE 's/^bd version ([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' | head -n 1)
+  mutation_ready=false
+  if [ -n "$bd_version" ] && version_at_least "$bd_version" "$MIN_BD_VERSION"; then
+    mutation_ready=true
+  fi
+
+  linear_available=false
+  linear_status='{"configured":false,"available":false}'
+  if bd linear status --json > "$tmp/linear.json" 2>/dev/null && jq -e 'type == "object"' "$tmp/linear.json" >/dev/null 2>&1; then
+    linear_available=true
+    linear_status=$(jq '. + {available:true} | del(.api_key)' "$tmp/linear.json")
+  fi
+
+  result=$(jq -cn \
+    --arg agent_home "$agent_home" \
+    --arg raw_version "$bd_raw" \
+    --arg version "$bd_version" \
+    --arg required "$MIN_BD_VERSION" \
+    --argjson mutation_ready "$mutation_ready" \
+    --argjson linear_available "$linear_available" \
+    --argjson linear "$linear_status" \
+    --argjson artifacts "$artifacts_json" '
+      {
+        agent_home:$agent_home,
+        bd:{raw:$raw_version,version:$version,required:$required,mutation_ready:$mutation_ready},
+        linear:($linear + {available:$linear_available}),
+        artifacts:{
+          total:($artifacts|length),
+          publishable:[$artifacts[]|select(.eligible)],
+          excluded:[$artifacts[]|select(.eligible|not)],
+          by_kind:($artifacts|group_by(.kind)|map({key:.[0].kind,value:length})|from_entries),
+          exclusions:([$artifacts[]|select(.eligible|not)|.reason]
+            | group_by(.)|map({key:.[0],value:length})|from_entries)
+        }
+      }')
+
+  if [ "$json" = 1 ]; then
+    printf '%s\n' "$result" | jq '.'
+    return 0
+  fi
+
+  printf 'bdx Linear projection status\n\n'
+  if [ "$mutation_ready" = true ]; then
+    printf '  bd          %s (mutation-compatible)\n' "$bd_version"
+  else
+    printf '  bd          %s (mutation blocked; requires >= %s)\n' "${bd_version:-unknown}" "$MIN_BD_VERSION"
+  fi
+  printf '  Linear      %s\n' "$(printf '%s' "$result" | jq -r 'if .linear.available then (if .linear.configured then "configured" else "not configured" end) else "status unavailable" end')"
+  printf '  artifacts   %s publishable · %s excluded · %s total\n' \
+    "$(printf '%s' "$result" | jq -r '.artifacts.publishable|length')" \
+    "$(printf '%s' "$result" | jq -r '.artifacts.excluded|length')" \
+    "$(printf '%s' "$result" | jq -r '.artifacts.total')"
+  printf '  agent home  %s\n' "$agent_home"
+
+  if [ "$(printf '%s' "$result" | jq -r '.artifacts.excluded|length')" -gt 0 ]; then
+    printf '\nExclusions:\n'
+    printf '%s' "$result" | jq -r '.artifacts.exclusions | to_entries[] | "  \(.key)\t\(.value)"'
+  fi
+  printf '\nRead-only status complete. No Linear mutations were attempted.\n'
+}
+
+command="${1:-status}"
+[ $# -eq 0 ] || shift
+case "$command" in
+  status) status_command "$@" ;;
+  -h|--help|help) usage ;;
+  *) usage; die "unknown command: $command" ;;
+esac
