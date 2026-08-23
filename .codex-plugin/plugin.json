@@ -1,6 +1,6 @@
 {
   "name": "bdx",
-  "version": "0.14.0",
+  "version": "0.14.1",
   "description": "Six Beads-native skills for planning, handoff, closure, rendering, implementation, and review.",
   "author": {
     "name": "Zach Sherbondy",
