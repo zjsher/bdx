@@ -18,6 +18,12 @@ Beads database.
 The source Markdown is never rewritten from Linear. Human edits to a managed
 projection do not become artifact edits.
 
+Native Beads pull owns reconciliation of supported coordination fields. A
+Linear Completed or Canceled state can therefore close the linked bead after a
+pull according to `linear.state_map`. Linear comments are not part of native
+Beads sync; they remain team discussion in Linear. Linear description changes
+may update the bead description but never a bdx plan, summary, or context dump.
+
 ## Privacy
 
 Publication fails closed:
@@ -64,6 +70,24 @@ There is no unbounded mutation command. Issue transport must receive explicit
 bead IDs or one explicit parent tree, show the native `bd linear` dry-run, and
 require a separate apply action. Artifact publication follows the same
 plan/apply boundary.
+
+```bash
+# Explicit bead selection
+scripts/bdx-linear issues plan bd-123 bd-456
+scripts/bdx-linear issues apply --yes bd-123 bd-456
+
+# Or one parent tree, expanded to an explicit capped list before native push
+scripts/bdx-linear issues plan --tree bd-parent
+# Run the frozen explicit-ID command printed by plan; apply rejects --tree.
+scripts/bdx-linear issues apply --yes bd-parent bd-child-1 bd-child-2
+```
+
+Selections are deduplicated and capped at 100 beads. Apply repeats the dry-run
+and stops if it fails. Tree expansion is preview-only so descendants added
+between preview and apply cannot enter the frozen selection. After a successful
+push, native `external_ref` remains canonical; a recognized Linear identifier
+is mirrored as `linear:TEAM-123` in the matching plan's `external:` list when
+that list can be edited safely.
 
 `bdx-linear status` is read-only. It reports compatibility, native Linear
 configuration, publishable artifacts, and exclusions without printing API
