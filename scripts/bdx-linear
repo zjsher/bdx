@@ -12,6 +12,8 @@ usage:
   bdx-linear status [--json] [--agent-home <path>]
   bdx-linear issues plan <bd-id>... | --tree <parent-id>
   bdx-linear issues apply --yes [--agent-home <path>] <bd-id>...
+  bdx-linear reconcile plan|once|loop [options]
+  bdx-linear inbox <bd-id> [--json] [--mark-read]
 
 status is read-only. issues plan runs a native bounded dry-run. issues apply
 requires --yes, repeats that dry-run, then pushes only the resolved selection.
@@ -512,6 +514,10 @@ command="${1:-status}"
 case "$command" in
   status) status_command "$@" ;;
   issues) issues_command "$@" ;;
+  reconcile|inbox)
+    script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+    exec "$script_dir/bdx-linear-reconcile" "$command" "$@"
+    ;;
   -h|--help|help) usage ;;
   *) usage; die "unknown command: $command" ;;
 esac

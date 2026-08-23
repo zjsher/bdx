@@ -18,11 +18,24 @@ Beads database.
 The source Markdown is never rewritten from Linear. Human edits to a managed
 projection do not become artifact edits.
 
-Native Beads pull owns reconciliation of supported coordination fields. A
-Linear Completed or Canceled state can therefore close the linked bead after a
-pull according to `linear.state_map`. Linear comments are not part of native
-Beads sync; they remain team discussion in Linear. Linear description changes
-may update the bead description but never a bdx plan, summary, or context dump.
+bdx does not use native Beads pull for routine reconciliation. Native pull has
+a shared `linear.last_sync` cursor and can import dependency relations, which
+crosses the authority boundary below. Instead, the bdx reconciler reads Linear
+directly and updates only already-linked beads. Linear Completed, Canceled, or
+archived issues close the linked bead; started issues become `in_progress`.
+
+The initial inbound allowlist is title, priority, and coordination status.
+Linear description and human assignee are cached for agent visibility but do
+not overwrite the bead: bdx uses the description for the durable plan pointer
+and Beads uses assignee for the agent claim. Dependencies, labels, issue type,
+plans, summaries, and contexts are never changed by inbound reconciliation.
+
+Linear comments are cached one-way as full, UUID-keyed inbox records. Creates
+and edits are idempotent; edited comments become unread again. A run emits at
+most one concise Beads pointer comment per affected bead, never one Beads
+comment per Linear comment body. On disk, each bead has one UUID-keyed comment
+object, so reading or reconciling one inbox does not scan the history of every
+other bead.
 
 ## Privacy
 
@@ -92,3 +105,44 @@ that list can be edited safely.
 `bdx-linear status` is read-only. It reports compatibility, native Linear
 configuration, publishable artifacts, and exclusions without printing API
 credentials.
+
+## Inbound reconciliation
+
+```bash
+# Preview issue and comment changes; writes nothing
+scripts/bdx-linear reconcile plan
+
+# Apply one bounded reconciliation window
+scripts/bdx-linear reconcile once --yes
+
+# Run locally every two minutes; minimum interval is 60 seconds
+scripts/bdx-linear reconcile loop --yes --interval 120
+
+# Read cached human discussion, then mark it read
+scripts/bdx-linear inbox bd-123
+scripts/bdx-linear inbox bd-123 --mark-read
+```
+
+Operational state lives under
+`$AGENT_HOME/.state/linear/<scope-fingerprint>/`. The fingerprint includes the
+Beads database, Linear team/project, and API endpoint. Issue and comment
+progress is tracked independently: issues are observed as a current snapshot,
+while comments use a time-window watermark and transient GraphQL page cursors.
+Remote queries are restricted to the issues already linked from Beads. Each
+run reads those linked issue snapshots in batches. The comment watermark
+continues across link removals; a newly linked or re-linked issue alone gets a
+historical comment bootstrap, rather than resetting the whole project window.
+
+Only one apply run may hold the scope lock. Cursor state contains no API key,
+comment body, email, or agent session. It advances only after every intended
+Beads mutation, inbox write, and rollup pointer succeeds. A partial run may
+leave already-applied idempotent Beads changes, but the old cursor forces the
+next run to reconcile the same remote window again. A dead same-host PID lock
+is recovered automatically. A foreign-host lock never expires automatically;
+verify that runner has stopped before manually removing its lock directory.
+
+Polling is the local-first transport. A later webhook receiver may trigger the
+same reconciliation command for lower latency; periodic polling remains the
+recovery path for missed deliveries. Hard-deleted comment tombstones require a
+webhook remove event or a periodic full inventory comparison and are deferred
+from the first poller milestone.

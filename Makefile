@@ -19,7 +19,7 @@ help:
 	@echo "Testing:"
 	@echo "  make test                   # everything that runs without docker"
 	@echo "  make test-hooks             # PreToolUse guards + bdx-note end-to-end"
-	@echo "  make test-linear            # Linear projection discovery + privacy boundary"
+	@echo "  make test-linear            # Linear projection + inbound reconciliation"
 	@echo ""
 	@echo "Installer testing (clean-slate container):"
 	@echo "  make test-install           # run scripts/install.sh in a fresh $(TEST_IMAGE)"
@@ -74,6 +74,7 @@ test-hooks:
 
 test-linear:
 	@bash dev/test-linear-projection.sh
+	@bash dev/test-linear-reconcile.sh
 
 # Everything that runs without docker.
 test: test-hooks test-linear
