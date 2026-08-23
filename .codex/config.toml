@@ -13,3 +13,6 @@ allow_local_binding = true
 
 [permissions.bdx-local.network.domains]
 "127.0.0.1" = "allow"
+
+[features]
+hooks = true
