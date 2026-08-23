@@ -1,253 +1,111 @@
 # bdx
 
-**Every agent session writes a markdown plan/summary keyed by a `bd` issue. The session ends; the record stays, and ordinary feature work moves through one tight build loop.**
+**Two coding disciplines that compose with Beads without replacing any part of it.**
 
-![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-D97757?logo=anthropic&logoColor=white) ![beads](https://img.shields.io/badge/beads-task_glue-9333EA) ![dolt](https://img.shields.io/badge/dolt-versioned_storage-1E40AF) ![status](https://img.shields.io/badge/status-experimental-yellow)
+bdx adds exactly two skills:
 
-A running agent session holds a lot of working memory - the plan, what got tried, what was rejected and why. The moment the session ends, all of that evaporates. bdx couples every [`bd` (beads)](https://github.com/gastownhall/beads) task to durable markdown - plans, mid-stream context dumps, summaries - keyed by bd-id and stored in `$AGENT_HOME` so [Obsidian graph view](https://help.obsidian.md/Plugins/Graph+view) can show how tasks, decisions, and knowledge correlate across projects.
+- `build-loop`: convert one settled Bead into a behavior/invariant/seam/proof
+  contract, implement it with tight executable feedback, and gate the result.
+- `quality-audit`: give the resulting code change one fresh-context, repro-gated
+  security, performance, correctness, and maintainability review.
 
-On top of that record sits an implementation discipline. [`build-loop`](#implementing-features) is the default: lock the design, keep one implementer in context, verify each coherent behavior with tight executable feedback, persist meaningful milestones, then run one fresh review at the goal boundary. `slice-loop` supplies independent review and an audit trail for each increment when the change requires that assurance.
+[Beads](https://github.com/gastownhall/beads) remains the complete work system. Its
+[official skill](https://github.com/gastownhall/beads/tree/main/plugins/beads/skills/beads)
+owns issue creation, planning fields, dependencies, claiming, notes, handoffs,
+resumability, decisions, closure, history, memory, collaboration, and integrations.
+bdx neither re-documents nor wraps those capabilities.
 
-This is my current ideal agent coding workflow, and it has served me well.
+## Install
 
-## Quickstart
+Install Beads and its official skill first. Run `bd setup` for each agent harness and
+follow the current output of `bd prime`; Beads intentionally treats that generated
+guidance as the CLI source of truth.
 
-Bootstraps `bd`, `dolt`, `BEADS_DIR`, and `AGENT_HOME` in one shot. Safe to re-run.
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/zeejers/bdx/refs/heads/development/scripts/install.sh | bash
-```
-
-Then install the Claude Code plugin:
-
-```bash
-claude plugin marketplace add zeejers/bdx && claude plugin install bdx@bdx-marketplace
-```
-
-Or install the Codex plugin:
+Install bdx for Claude Code:
 
 ```bash
-codex plugin marketplace add zeejers/bdx && codex plugin add bdx@bdx-marketplace
+claude plugin marketplace add zeejers/bdx
+claude plugin install bdx@bdx-marketplace
 ```
 
-## Usage
+Or for Codex:
 
-Default feature path:
-
-```
-plan → attach → build-loop → close
-```
-
-**1. Plan.** Chat with the agent about what you want to build, then `/bdx:plan` to plan from the discussion (or `/bdx:plan "feature in one line"`). You get back a beads issue (e.g. `bd-abc`) plus a plan file at `$AGENT_HOME/plan/bd-abc-<slug>.md`.
-
-**2. Attach.** From any supported agent session, `/bdx:attach bd-abc`. The session loads the plan, every prior context dump, and the latest summary into turn-1 context - the agent picks up with full history.
-
-> From a fresh terminal, `bdc bd-abc` launches `claude` with the task already attached.
-
-**3. Build.** Run `/bdx:build-loop bd-abc` (or name a phase/goal). The agent locks a compact design contract, implements coherent behavior in one continuous context, runs narrow checks as it goes, ticks only completed plan outcomes, and performs one fresh review at the goal boundary.
-
-**4. Track or hand off.** Peek at the plan anytime to see what's done. `/bdx:check bd-abc "<step>"` is the cheap manual progress primitive. Learned something mid-flight? `bdx-note "the retry loop leaks a socket on 429"` appends one timestamped line to the plan's `## Log` — one command, no skill load, and it works for humans in the same terminal. About to log out mid-goal? `/bdx:dump` snapshots head-state to `$AGENT_HOME/context/`; the next `/bdx:attach` pulls it back in.
-
-**5. Close.** Finish the work, then `/bdx:close bd-abc` writes a summary to `$AGENT_HOME/summary/`, attributes decisions to agent vs user, and closes the bd issue with a one-line resolution. The plugin's `PreToolUse` hook blocks bare `bd close` so you can't accidentally skip the writeup.
-
-## Implementing features
-
-The lifecycle skills answer "where does the record live?"; the implementation skills answer "how does the work land?" `build-loop` is the ordinary default. Choose `slice-loop` when the required evidence belongs at every increment rather than one milestone boundary.
-
-**`/bdx:build-loop`** implements a planned milestone through one tight, design-gated loop. Before editing, it locks the observable behavior, invariant, existing seam, and executable proof. One implementer adds coherent behavior and runs the narrowest deterministic check, plus an end-to-end heartbeat when that proof exercises a different path. Completed plan outcomes, material decisions, blockers, and resumable handoffs remain durable. At the milestone boundary it runs the broader relevant gate plus one fresh `quality-audit light` review.
-
-Choose between the loops from properties of the change, not its business domain. `build-loop` fits when deterministic checks and one independent milestone review can prove the result. Reach for `slice-loop` when important state or interactions cannot be exercised reliably at the milestone gate, a mistake would be difficult to detect or reverse before affecting others, consequential choices need review as the implementation grows, or policy requires independent evidence for each increment.
-
-**`/bdx:skeleton`** is that walking skeleton on its own, ceremony stripped - the thinnest end-to-end path that actually runs, built fast with no ledger, no bd, no per-step review. It's the compressed front-half of `slice` for when a *running thing* is the win and wall-clock matters: spikes, prototypes, demos, timed interviews, or the opening move before you switch to `slice` for rigor. Verify once at the end (it runs), emit a short note, hand off. Re-invoke `/bdx:skeleton <next step>` to thicken the spine in the same fast mode - it detects a running spine and never rebuilds it, re-running one end-to-end check per increment as a keep-it-green heartbeat; `new` forces a fresh spine.
-
-**`/bdx:slice`** implements exactly one slice per invocation, then halts. The first slice on a fresh task is always the *walking skeleton* - the thinnest end-to-end path that actually runs - and every slice after that thickens the spine. Each slice ships with an executable pass/fail check (a test, an assertion, a script that exits non-zero), and the agent must prove the check can fail before claiming it passes. One row goes into the plan's decision ledger, then it stops and hands control back to you.
-
-**`/bdx:slice-review`** closes the slice with a review that runs exactly one round. Reviewers told to "find what's wrong" manufacture speculative findings rather than report an empty list; slice-review inverts the contract - every finding needs a concrete failure scenario and a CONFIRMED/PLAUSIBLE verdict, an empty findings list is a PASS, only CONFIRMED blocks, PLAUSIBLE goes to the backlog. Optionally borrows a saved persona (`$AGENT_HOME/personas/`) as its lens.
-
-**`/bdx:slice-loop`** runs the slice/review pair autonomously until a goal is met - "until phase 5-6 complete", "until the plan is done", or a bd-id's remaining checkboxes. A lean parent session spawns worker subagents that each run a quota of slice → slice-review iterations and retire fresh, with a mechanism-level quality audit at every handoff. Use it when independent evidence at each increment is part of the completion standard rather than an optional final check.
-
-The trade is a ceremony dial. `skeleton` is the throwaway-fast end: a running spine, one check, no durable trail. `build-loop` is the production default: durable milestones, tight checks, one boundary review. `slice` keeps your judgment visible after every defensible increment. `slice-loop` autonomously pays the full per-slice assurance cost. Same spine-first instinct; different evidence budgets.
-
-## Skills (`/bdx:<name>`)
-
-**Happy path** - the five you'll reach for daily:
-
-- `plan` - open a new bd task + paired plan file.
-- `attach` - resume an existing bd task in a fresh session: load plan + prior contexts/summaries, flip status to in_progress.
-- `check` - tick a checkbox on the plan with no other side effects. Cheap mid-task progress.
-- `dump` - snapshot session head-state so you can log out fearlessly. Sweeps the plan for done checkboxes too.
-- `close` - finalize the task: write a summary if missing, then `bd close`.
-
-**Implementation loop** - see [Implementing features](#implementing-features):
-
-- `build-loop` - default planned feature workflow: lock the design, implement in one tight loop, persist milestones, and run one fresh boundary review.
-- `skeleton` - build the thinnest end-to-end running spine fast, zero ceremony, verify once that it runs, hand off. The compressed front-half of `slice`.
-- `slice` - implement one bounded, verifiable increment (walking-skeleton first), verify with an executable check, log to the decision ledger, halt.
-- `slice-review` - review the landed slice in exactly one round under a constrained finding-contract; empty findings = PASS.
-- `slice-loop` - per-increment autonomous feature assurance: orchestrate slice ⇄ slice-review via worker subagents with quality audits at every handoff.
-- `care` - inject the "what you care about" index: ~40 named failure/quality anchors (bad inputs, races, instance death, tenancy, seams...) that widen the active agent's attention before a review or a thicken run. Point it at a custom index (`/care path/to/index.md`, or a name in `$AGENT_HOME/care/`) to swap in a domain-specific list. A lens, not a license - findings still need the finding-contract, and implementation-side concerns go to Deferred, never into unasked code.
-
-**Less common:**
-
-- `summarize` - write the durable post-implementation record to `$AGENT_HOME/summary/`. Usually invoked by `close`; standalone-callable when you want the writeup before closing. Runs on sonnet and skips persona reviews by default; pass `--personas` for an inline review pass, or `--deep` to run it on opus. `close` forwards both flags.
-- `scope` - retrofit an existing bd (no plan, no project label) into the lifecycle. Use when a bd was created bare via phone capture or `bd create`.
-- `triage` - drain inbox + unscoped-bd queues into structured tasks. Hands off to `plan` or `scope`.
-- `reconcile` - the reverse of `triage`: check the open queue against `$AGENT_HOME` notes and the real code at each manifest path, then propose what should close *and* which plan checkboxes the code already satisfies. Every close and every tick carries a quoted probe result from the codebase; prose overlap alone lands in the Ask bucket. `--boxes` runs the cheap tick-only sweep. Proposes only - closing routes through `close`, ticking through `check`.
-- `label` - apply plain labels or namespaced external refs (`jira:`, `linear:`, `gh:`, `figma:`); namespaced refs propagate into the plan's frontmatter.
-- `manifest` - register or update a project entry in `$AGENT_HOME/manifest.md` so `plan`/`scope` can validate labels against it.
-- `persona` - invoke a saved reviewer voice over a target (file, bd-id, diff, prose). Used by `summarize` under `--personas` / `--deep`.
-
-## `$AGENT_HOME`
-
-Durable markdown lives under `$AGENT_HOME` (default `~/.bdx-agent/`). The hook auto-creates the layout:
-
-```
-$AGENT_HOME/
-├── plan/       # long-form plans (the execution prompt)
-├── context/    # mid-stream state dumps
-├── summary/    # post-implementation writeups
-└── inbox/      # mobile-capture seeds
+```bash
+codex plugin marketplace add zeejers/bdx
+codex plugin add bdx@bdx-marketplace
 ```
 
-Override by exporting `AGENT_HOME` before launching your agent harness - e.g. `export AGENT_HOME="$HOME/Dropbox/Notes/agent"` to sync plans across machines.
+## Workflow
 
-## Permissions
+1. Use the official Beads workflow to select, define, and claim work.
+2. Invoke `/bdx:build-loop <bead-id>` when the outcome is settled and can be proven
+   with deterministic checks.
+3. The build loop invokes `/bdx:quality-audit light` at its milestone boundary.
+4. Return the evidence and remaining frontier to the official Beads workflow, which
+   decides how to persist, split, block, hand off, or close the work.
 
-Every `/bdx:*` skill fires `bd` subcommands and writes to `$AGENT_HOME/`. The Quickstart installer configures both Claude Code and Codex automatically.
+bdx does not carry a second lifecycle between steps 1 and 4.
 
-For Claude Code, the installer merges this into `~/.claude/settings.json`:
+## Responsibility boundary
 
-```json
-{
-  "permissions": {
-    "allow": [
-      "Bash(bd:*)",
-      "Read(~/.bdx-agent/**)",
-      "Write(~/.bdx-agent/**)",
-      "Edit(~/.bdx-agent/**)"
-    ]
-  }
-}
-```
-
-If you've overridden `AGENT_HOME`, swap that path in. Claude Code expands `~` but not shell env vars.
-
-For Codex, the installer appends an idempotent managed block to `$CODEX_HOME/rules/bdx.rules` (`CODEX_HOME` defaults to `~/.codex`):
-
-```python
-prefix_rule(
-    pattern = ["bd"],
-    decision = "allow",
-    justification = "bdx skills use Beads task tracking and its configured Dolt store",
-    match = ["bd ready", "bd show bd-123", "bd dolt push"],
-    not_match = ["bdx ready"],
-)
-```
-
-Codex loads user rules at startup, so restart it after installing bdx. The exact-token `bd` prefix does not allow similarly named commands such as `bdx`.
-
-The rule **pre-approves** an explicit host-execution request; it does not automatically move a default shell call outside Codex's workspace sandbox. Every bdx skill that invokes `bd` therefore carries a Codex-only execution contract requiring `sandbox_permissions: "require_escalated"` (and `prefix_rule: ["bd"]` for direct commands). This includes read-only commands because a sandboxed process cannot reach a host Dolt listener on loopback. Claude Code and other harnesses ignore that Codex-only contract and continue using their normal execution path.
-
----
-
-## Under the hood
-
-### Lifecycle (full state machine)
-
-```
-        capture                                 work
-   ┌──────────────┐                  ┌─────────────────────────────────┐
-   │ inbox / bare │   triage         │                                 │
-   │ bd create    │ ─────────► plan ─┤ attach ──► check / dump? ───┐   │
-   └──────────────┘     │            │   ▲                         │   │
-                        │            │   │       resume cold       │   │
-                        └─► scope ───┤   └─────────────────────────┘   │
-                                     │                                 │
-                                     │            work done            │
-                                     └─► summarize ──► close           │
-                                                                       │
-                                            (terminal) ────────────────┘
-```
-
-`reconcile` closes the loop the other way round: when sessions ship work and never reach `close`, it walks the open queue, probes the code at each manifest path, and feeds proven-done issues back into `close` / `bd supersede`.
-
-The plan stays close to its original shape - it's the prompt, and the diff `plan ↔ summary` is "what we set out to do" vs "what shipped." `check`, `dump`, and `summarize` may all tick `- [ ]` boxes (with optional `→ <divergence>` annotations) so the plan stays a live progress view. None of them rewrite plan prose.
-
-### Hooks
-
-- **`SessionStart`** → `capture-session-id.sh` records a harness-qualified identity such as `"claude-code:<uuid>"` or `"codex:<uuid>"` for `sessions:` frontmatter. It exports `$BDX_SESSION_ID` when the host supports persistent hook environment updates and otherwise injects the value into session context. Set `BDX_HARNESS=<slug>` to identify another hook-compatible host; undetected hosts use `"unknown:<id>"`.
-- Resume a recorded session by splitting the prefix from the id: `claude --resume <id>` for `claude-code:` or `codex resume <id>` for `codex:`.
-- **`SessionStart`** → `bdx-ensure-agent-home.sh` resolves `$AGENT_HOME`, auto-creates the subdir layout, exports the value, and puts the plugin's `scripts/` on `$PATH` so `bdx-note` and `bdc` are callable by name.
-- **`SessionStart:startup`** → `bd-auto-attach.sh` if `$BD_ID` is set, auto-loads plan/context/summary, appends the harness-qualified session identity to `sessions:`, flips bd status `open → in_progress`, and emits the bundle as `additionalContext` on turn 1.
-- **`PreToolUse:Bash`** → `block-bare-bd-close.sh` blocks direct `bd close` so you're forced through `/bdx:close`.
-- **`PreToolUse:Bash`** → `block-bd-narrative-writes.sh` blocks `bd note`, `bd edit`, and `--notes` / `--append-notes` / `--design` / `--design-file` / `--context` / `--acceptance` on `bd create|update`, and prints the exact `bdx-note` command to run instead.
-
-Why that last one is a hook and not a documented convention: `bd prime` runs at every `SessionStart` and puts *"`bd update <id> --title/--description/--notes/--design`"* into turn-1 context. An instruction the harness re-injects every session outranks prose sitting in a skill file that only loads when invoked — agents writing narrative into bd aren't ignoring bdx, they're obeying bd. Only a deterministic block changes the outcome.
-
-Three things it deliberately leaves alone:
-
-| Still allowed | Why |
+| Concern | Owner |
 | --- | --- |
-| `bd comment` | Load-bearing. `attach` reads the comment thread at boot; `dump` / `summarize` / `triage` / `check` / `slice-loop` write pointers into it. Comments are the bd-side index, the plan is the prose. |
-| `-d` / `--description` | `plan` writes the plan pointer through it. |
-| `bd remember` | Cross-session knowledge, a different layer from task narrative. |
+| Work selection, issue quality, task state, planning fields | Beads |
+| Dependencies, resumability, handoffs, decisions, closure | Beads |
+| Durable project memory and collaboration | Beads |
+| External integrations and synchronization | Beads |
+| Behavior/invariant/seam/proof implementation discipline | `build-loop` |
+| Independent adversarial code review | `quality-audit` |
 
-### Note primitive
+The distinction matters: Beads’ `audit` command records agent interactions, while
+bdx’s `quality-audit` reviews a code change and requires executable evidence for a
+confirmed finding. They solve different problems.
 
-`bdx-note [bd-id] "<text>"` appends one timestamped line to the `## Log` section of `$AGENT_HOME/plan/<bd-id>-*.md`, creating the section on first use. `bd-id` defaults to `$BD_ID`, then to the only `in_progress` bd that has a plan. Multi-line text stays inside the bullet. `-q` silences the confirmation.
+## Skills
 
-It exists so the block above has somewhere equally cheap to point: if the sanctioned path costs more than `bd note` did, agents just reach for the escape hatch.
+### `/bdx:build-loop`
 
-### Launcher
+The production-default implementation loop:
 
-`scripts/bdc <bd-id>` sets `BD_ID`, derives a slug from the bd title, and runs `claude -n "<bd-id>-<slug>"`. Symlink to `~/bin/bdc` or alias it.
+1. Accept one already-selected Bead and its settled outcome from the Beads workflow.
+2. Lock `Behavior / Invariant / Seam / Proof` before editing.
+3. Implement one coherent behavior at a time.
+4. Run the tightest deterministic check after each behavior.
+5. Run the broader gate and `/bdx:quality-audit light` at the milestone boundary.
+6. Return observable evidence and the exact remaining frontier to Beads.
 
-### Local plugin dev
+### `/bdx:quality-audit`
+
+A fresh-context adversarial review with security, performance, correctness, and
+maintainability lenses. Findings must name a concrete cost; only executable repros
+earn `CONFIRMED`. `PLAUSIBLE` findings are advisory, and an empty list is a valid
+pass.
+
+## What bdx intentionally does not contain
+
+- No Markdown task plans, context dumps, or completion summaries.
+- No `$AGENT_HOME`, session registry, task database, launcher, or background process.
+- No lifecycle hooks and no hooks that block native Beads commands.
+- No duplicated Beads commands, field mappings, templates, or integration guidance.
+- No provider credentials, API clients, state mappings, pollers, caches, or adapters.
+
+This makes bdx integration-agnostic by construction: every integration supported by
+the installed Beads version remains available without bdx knowing it exists.
+
+Large specifications, ADRs, research reports, and customer documents may still be
+Markdown when the document itself is a deliverable. They are not a parallel task
+store.
+
+## Development
 
 ```bash
-claude --plugin-dir ~/src/github.com/bdx
+make test
 ```
 
-### Optional starter content
+The test suite validates both plugin manifests, the exact two-skill surface, the
+absence of hooks and provider-specific code, and the delegation boundary with the
+official Beads workflow.
 
-Drop-ins under [`examples/`](./examples/):
-- `examples/manifest.md` → `$AGENT_HOME/manifest.md` - sample project manifest used by `plan`/`scope` to validate labels in monorepos.
-- `examples/personas/` → `$AGENT_HOME/personas/` - example reviewer voices (DHH, Linus) for `summarize`.
+## License
 
-The Quickstart installer offers to seed these at step 5/5.
-
-### Escape hatches
-
-- `BD_ID` unset → SessionStart hook is a silent no-op
-- `BDX_ALLOW_BARE_BD_CLOSE=1 bd close bd-abc` → bypass the close guard once
-- `BDX_ALLOW_BD_NARRATIVE=1 bd note bd-abc "..."` → bypass the narrative guard once
-
-### Prerequisites
-
-- `bd` (beads) CLI on `$PATH` - [gastownhall/beads](https://github.com/gastownhall/beads)
-- `dolt` on `$PATH` - beads' storage backend ([dolthub/dolt](https://github.com/dolthub/dolt))
-- `jq`, `bash`, POSIX `awk`
-
-The Quickstart script handles `bd` and `dolt` for you.
-
-### Uninstall
-
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/zeejers/bdx/refs/heads/development/scripts/uninstall.sh)
-```
-
-Reverses everything except your shell profile exports. Destructive ops default to *no*; `--dry-run` previews.
-
-## FAQ
-
-### Why am I installing dolt for an issue tracker?
-
-You're not - you're installing it for `bd`. [Beads](https://github.com/gastownhall/beads) is the issue tracker; it ships with [Dolt](https://github.com/dolthub/dolt) (a SQL DB with git-style branching) as its storage backend. That's what makes tasks, comments, and status persist across sessions, machines, and branches - sync `$AGENT_HOME` via Dropbox/iCloud and your agents have a real persistence layer, not a chat log.
-
-### Do I need a separate dolt server running?
-
-`bd` auto-starts one transparently in the background the first time it needs one. `bd dolt status` shows it. Default mode is shared-server - one process serves every project on the machine.
-
-### Can I skip dolt and use SQLite?
-
-Beads has a `no-db` JSONL-only mode (set `no-db: true` in `~/.beads/config.yaml`), but you lose the branchable history. The installer's `--skip-dolt` flag exists if you want to go that route.
+MIT

@@ -82,3 +82,23 @@ bd close <id>         # Complete work
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
 <!-- END BEADS INTEGRATION -->
+
+## Build & Test
+
+```bash
+make test
+```
+
+## Architecture
+
+bdx is a two-skill, integration-agnostic layer over native Beads:
+
+- `build-loop` implements one settled Bead with tight executable checks and returns
+  a compact evidence bundle to the native Beads workflow.
+- `quality-audit` independently reviews the resulting code change.
+
+Do not add a parallel task store, Markdown plan lifecycle, hooks that block native
+Beads behavior, or provider-specific integration code. Beads owns all task state,
+narrative, dependencies, handoffs, memories, history, and external integrations.
+Do not restate Beads CLI or lifecycle rules in bdx; `bd prime` and the official Beads
+skill are the source of truth.

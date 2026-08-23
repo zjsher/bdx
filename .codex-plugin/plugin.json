@@ -1,7 +1,7 @@
 {
   "name": "bdx",
-  "version": "0.13.0",
-  "description": "Beads workflow skills and hooks for durable planning, lightweight feature builds, per-increment assurance, handoff, and closure.",
+  "version": "0.14.0",
+  "description": "Two Beads-native coding skills: a tight implementation loop and a fresh-context quality audit.",
   "author": {
     "name": "Zach Sherbondy",
     "url": "https://github.com/zeejers"
@@ -17,8 +17,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "bdx",
-    "shortDescription": "Durable Beads workflows for coding agents",
-    "longDescription": "Plan, attach, build ordinary features in a tight durable loop, choose per-increment slices when the evidence requires them, then summarize and close Beads tasks.",
+    "shortDescription": "Build and review native Beads tasks",
+    "longDescription": "Implement one native Beads task with tight executable feedback, then run a fresh-context repro-gated quality audit. Beads remains the sole task and integration layer.",
     "developerName": "Zach Sherbondy",
     "category": "Productivity",
     "capabilities": [
@@ -27,10 +27,8 @@
     ],
     "websiteURL": "https://github.com/zeejers/bdx",
     "defaultPrompt": [
-      "Plan this work as a durable Beads task.",
-      "Attach this session to an existing Beads task.",
-      "Build the next planned feature milestone with tight feedback and durable progress.",
-      "Run independently reviewed slices for each increment of this feature."
+      "Build this Beads task with tight executable feedback.",
+      "Run a fresh-context quality audit over this change."
     ]
   }
 }

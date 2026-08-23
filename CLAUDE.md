@@ -52,18 +52,20 @@ bd close <id>         # Complete work
 
 ## Build & Test
 
-_Add your build and test commands here_
-
 ```bash
-# Example:
-# npm install
-# npm test
+make test
 ```
 
-## Architecture Overview
+## Architecture
 
-_Add a brief overview of your project architecture_
+bdx is a two-skill, integration-agnostic layer over native Beads:
 
-## Conventions & Patterns
+- `build-loop` implements one settled Bead with tight executable checks and returns
+  a compact evidence bundle to the native Beads workflow.
+- `quality-audit` independently reviews the resulting code change.
 
-_Add your project-specific conventions here_
+Do not add a parallel task store, Markdown plan lifecycle, hooks that block native
+Beads behavior, or provider-specific integration code. Beads owns all task state,
+narrative, dependencies, handoffs, memories, history, and external integrations.
+Do not restate Beads CLI or lifecycle rules in bdx; `bd prime` and the official Beads
+skill are the source of truth.

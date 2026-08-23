@@ -1,3 +1,16 @@
+## v0.14.0 (2026-08-23)
+
+### Breaking change
+
+- Recast bdx as a two-skill, Beads-native workflow pack: `build-loop` and
+  `quality-audit`.
+- Removed the parallel Markdown plan/context/summary lifecycle, `$AGENT_HOME`,
+  lifecycle hooks, helper scripts, and artifact examples.
+- Removed all provider-specific synchronization and projection code. Native Beads
+  now owns every external integration without bdx policy or state layered on top.
+- Reworked `build-loop` to compose with the official Beads skill and `bd prime`
+  instead of duplicating native lifecycle commands or field guidance.
+
 ## v0.12.0 (2026-08-07)
 
 I'm unable to generate meaningful release notes from the information provided. Here's why:

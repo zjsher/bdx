@@ -1,4 +1,4 @@
 interface:
   display_name: "Build Loop"
-  short_description: "Implement a settled milestone with tight checks"
-  default_prompt: "Use $build-loop to implement the current planned milestone, proving each behavior with the tightest executable check and persisting progress at milestone boundaries."
+  short_description: "Prove one Bead through a tight build loop"
+  default_prompt: "Use $build-loop to implement the active Bead with tight executable checks and return a compact evidence bundle to the native Beads workflow."
