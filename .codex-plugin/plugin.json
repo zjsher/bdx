@@ -1,7 +1,7 @@
 {
   "name": "bdx",
   "version": "0.14.0",
-  "description": "Two Beads-native coding skills: a tight implementation loop and a fresh-context quality audit.",
+  "description": "Six Beads-native skills for planning, handoff, closure, rendering, implementation, and review.",
   "author": {
     "name": "Zach Sherbondy",
     "url": "https://github.com/zeejers"
@@ -17,8 +17,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "bdx",
-    "shortDescription": "Build and review native Beads tasks",
-    "longDescription": "Implement one native Beads task with tight executable feedback, then run a fresh-context repro-gated quality audit. Beads remains the sole task and integration layer.",
+    "shortDescription": "Plan, build, hand off, close, and review Beads",
+    "longDescription": "Use thin native-Beads planning, handoff, closure, and rendering entry points, plus a tight implementation loop and fresh-context quality audit. Beads remains the sole task and integration layer.",
     "developerName": "Zach Sherbondy",
     "category": "Productivity",
     "capabilities": [
@@ -27,8 +27,9 @@
     ],
     "websiteURL": "https://github.com/zeejers/bdx",
     "defaultPrompt": [
-      "Build this Beads task with tight executable feedback.",
-      "Run a fresh-context quality audit over this change."
+      "Plan this work directly in Beads.",
+      "Build and review this Beads task.",
+      "Dump a handoff or close the current Bead."
     ]
   }
 }

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Dump"
+  short_description: "Persist a resumable native Beads handoff"
+  default_prompt: "Use $dump to persist the current work frontier on the active Bead."
+policy:
+  allow_implicit_invocation: false

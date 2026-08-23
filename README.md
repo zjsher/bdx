@@ -1,9 +1,13 @@
 # bdx
 
-**Two coding disciplines that compose with Beads without replacing any part of it.**
+**Thin Beads ergonomics plus focused build and review disciplines.**
 
-bdx adds exactly two skills:
+bdx adds six skills:
 
+- `plan`: shape implementation-ready work in native Beads fields and relationships.
+- `dump`: append a compact, resumable handoff to a native Bead.
+- `close`: verify completion, persist final evidence, and close through Beads.
+- `render`: open a disposable Markdown view of a Bead and its referenced Beads.
 - `build-loop`: convert one settled Bead into a behavior/invariant/seam/proof
   contract, implement it with tight executable feedback, and gate the result.
 - `quality-audit`: give the resulting code change one fresh-context, repro-gated
@@ -13,7 +17,8 @@ bdx adds exactly two skills:
 [official skill](https://github.com/gastownhall/beads/tree/main/plugins/beads/skills/beads)
 owns issue creation, planning fields, dependencies, claiming, notes, handoffs,
 resumability, decisions, closure, history, memory, collaboration, and integrations.
-bdx neither re-documents nor wraps those capabilities.
+The thin bdx lifecycle skills compose those capabilities without replacing their
+storage, semantics, or command guidance.
 
 ## Install
 
@@ -37,14 +42,15 @@ codex plugin add bdx@bdx-marketplace
 
 ## Workflow
 
-1. Use the official Beads workflow to select, define, and claim work.
-2. Invoke `/bdx:build-loop <bead-id>` when the outcome is settled and can be proven
+1. Use `/bdx:plan` when work needs to be shaped into native Beads fields and links.
+2. Use the official Beads workflow to select and claim work.
+3. Invoke `/bdx:build-loop <bead-id>` when the outcome is settled and can be proven
    with deterministic checks.
-3. The build loop invokes `/bdx:quality-audit light` at its milestone boundary.
-4. Return the evidence and remaining frontier to the official Beads workflow, which
-   decides how to persist, split, block, hand off, or close the work.
+4. The build loop invokes `/bdx:quality-audit light` at its milestone boundary.
+5. Use `/bdx:dump` to pause with a durable handoff or `/bdx:close` to verify and
+   finish the Bead. Use `/bdx:render` whenever a disposable joined view helps.
 
-bdx does not carry a second lifecycle between steps 1 and 4.
+Every durable write in this flow lands in Beads.
 
 ## Responsibility boundary
 
@@ -54,6 +60,8 @@ bdx does not carry a second lifecycle between steps 1 and 4.
 | Dependencies, resumability, handoffs, decisions, closure | Beads |
 | Durable project memory and collaboration | Beads |
 | External integrations and synchronization | Beads |
+| Planning, handoff, and closure ergonomics | `plan`, `dump`, and `close`, backed by Beads |
+| Disposable joined Markdown projection | `render` |
 | Behavior/invariant/seam/proof implementation discipline | `build-loop` |
 | Independent adversarial code review | `quality-audit` |
 
@@ -62,6 +70,28 @@ bdx’s `quality-audit` reviews a code change and requires executable evidence f
 confirmed finding. They solve different problems.
 
 ## Skills
+
+### `/bdx:plan`
+
+Create or refine an implementation-ready Bead using native description, design,
+acceptance, and relationship data. It produces no plan file.
+
+### `/bdx:dump`
+
+Append a concise native handoff containing current state, evidence, decisions,
+remaining work, and the exact next action.
+
+### `/bdx:close`
+
+Check the Bead's acceptance boundary, persist final evidence and follow-ups, then
+close it through the current official Beads workflow. Failed proof leaves it open
+with a durable handoff.
+
+### `/bdx:render`
+
+Traverse a Bead's native references cycle-safely, render every collected field and
+comment to a unique file under the OS temp directory, and open it. The result is a
+read-only snapshot and never becomes project state.
 
 ### `/bdx:build-loop`
 
@@ -83,7 +113,8 @@ pass.
 
 ## What bdx intentionally does not contain
 
-- No Markdown task plans, context dumps, or completion summaries.
+- No durable Markdown task plans, context dumps, or completion summaries. `render`
+  creates only a disposable read-only projection under the OS temp directory.
 - No `$AGENT_HOME`, session registry, task database, launcher, or background process.
 - No lifecycle hooks and no hooks that block native Beads commands.
 - No duplicated Beads commands, field mappings, templates, or integration guidance.
@@ -102,7 +133,7 @@ store.
 make test
 ```
 
-The test suite validates both plugin manifests, the exact two-skill surface, the
+The test suite validates both plugin manifests, the exact six-skill surface, the
 absence of hooks and provider-specific code, and the delegation boundary with the
 official Beads workflow.
 

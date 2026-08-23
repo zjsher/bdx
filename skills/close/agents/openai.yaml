@@ -1,0 +1,6 @@
+interface:
+  display_name: "Close"
+  short_description: "Verify and close a native Beads task"
+  default_prompt: "Use $close to verify completion and close the active Bead through its native lifecycle."
+policy:
+  allow_implicit_invocation: false

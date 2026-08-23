@@ -1,7 +1,7 @@
 {
   "name": "bdx",
   "version": "0.14.0",
-  "description": "Two Beads-native coding skills: a tight implementation loop and a fresh-context quality audit. No hooks, second task store, or tracker-specific integration.",
+  "description": "Six Beads-native skills for planning, handoff, closure, rendering, implementation, and review. No second task store or tracker-specific integration.",
   "author": {
     "name": "Zach Sherbondy"
   }

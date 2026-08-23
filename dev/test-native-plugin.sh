@@ -24,19 +24,36 @@ actual_skills=$(
     basename "$(dirname "$path")"
   done | sort
 )
-expected_skills=$(printf '%s\n' build-loop quality-audit)
+expected_skills=$(printf '%s\n' build-loop close dump plan quality-audit render)
 test "$actual_skills" = "$expected_skills" || {
   printf 'expected skills:\n%s\nactual skills:\n%s\n' \
     "$expected_skills" "$actual_skills" >&2
   exit 1
 }
 
-for skill in build-loop quality-audit; do
+for skill in build-loop close dump plan quality-audit render; do
   file="skills/$skill/SKILL.md"
   test -f "$file" || fail "missing $file"
   grep -Fqx -- '---' "$file" || fail "missing frontmatter: $file"
   grep -Fq "name: $skill" "$file" || fail "wrong skill name: $file"
 done
+
+for skill in close dump plan render; do
+  file="skills/$skill/SKILL.md"
+  grep -Fq "Use when the user invokes /bdx:$skill" "$file" || \
+    fail "thin skill must have a narrow invocation pointer: $file"
+  grep -Fq 'official Beads skill' "$file" || \
+    fail "thin skill must delegate to official Beads: $file"
+  grep -Fq '`bd prime`' "$file" || \
+    fail "thin skill must defer to current Beads guidance: $file"
+  grep -Fq 'allow_implicit_invocation: false' \
+    "skills/$skill/agents/openai.yaml" || \
+    fail "thin skill must require explicit Codex invocation: $file"
+done
+
+grep -Fq 'read-only projection' skills/render/SKILL.md
+grep -Fq 'OS temp directory' skills/render/SKILL.md
+grep -Fq 'must not mutate' skills/render/SKILL.md
 
 test ! -f hooks/hooks.json || fail "plugin hooks must not exist"
 if find scripts -type f -print 2>/dev/null | grep -q .; then
@@ -45,7 +62,7 @@ fi
 if find examples -type f -print 2>/dev/null | grep -q .; then
   fail "Markdown artifact examples must not exist"
 fi
-if find . -path ./.git -prune -o -type f \
+if find . -path ./.git -prune -o -path ./.beads -prune -o -type f \
     \( -iname '*linear*' -o -iname '*jira*' -o -iname '*github*' \
        -o -iname '*gitlab*' -o -iname '*notion*' -o -iname '*ado*' \) \
     -print | grep -q .; then
@@ -62,9 +79,9 @@ if grep -Eq 'bd (ready|show|comments|update|close|create|list|search|label|dep|r
   fail "build-loop duplicates native Beads lifecycle commands"
 fi
 
-if grep -Eq 'bdx:(attach|plan|check|dump|close|summarize|scope|triage|reconcile|label|manifest|persona|slice)' \
+if grep -Eq 'bdx:(attach|plan|check|dump|close|render|summarize|scope|triage|reconcile|label|manifest|persona|slice)' \
     skills/build-loop/SKILL.md; then
-  fail "build-loop depends on a removed bdx lifecycle skill"
+  fail "build-loop must remain independent of bdx lifecycle entry points"
 fi
 
 if grep -R '\$AGENT_HOME' skills .claude-plugin .codex-plugin \
@@ -75,8 +92,9 @@ fi
 grep -Fq 'integration-agnostic' README.md
 grep -Fq 'official skill' README.md
 grep -Fq '`bd prime`' README.md
-grep -Fq 'build-loop and quality-audit' .claude-plugin/marketplace.json
-test "$(jq '.interface.defaultPrompt | length' .codex-plugin/plugin.json)" = 2
+grep -Fq 'plan, dump, close, render, build-loop, and quality-audit' \
+  .claude-plugin/marketplace.json
+test "$(jq '.interface.defaultPrompt | length' .codex-plugin/plugin.json)" = 3
 
 bash -n dev/release.sh dev/test-native-plugin.sh
 test "$(./dev/release.sh current)" = "$claude_version"
