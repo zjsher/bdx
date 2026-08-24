@@ -1,8 +1,6 @@
 ---
 name: quality-audit
 description: Adversarial audit of recent changes for security, performance, and maintainability. Fresh subagents grade the work so the session that implemented it isn't reviewing itself. Default (light) launches one adversarial reviewer; medium launches one reviewer per lens (3-4 agents, no fleet); ultra mode dynamically scales a multi-agent fleet with verification; --inline runs the audit in-session with no subagents at all. Findings are repro-gated (CONFIRMED requires execution; PLAUSIBLE is advisory) and materiality-gated (every finding must state its concrete cost — correctness, money, data, or a named future cost like a scaling wall; theoretical/won't-happen findings earn negative credit), runs are one round per change, and a repo-local ledger keeps repeat audits from refilling with reviewer noise. Stack-agnostic. Use after implementing features or fixes.
-user-invocable: true
-argument-hint: "[light|medium|ultra] [file/directory/scope] [--agents N (ultra only: reviewers per area)] [--inline (no subagents)] [--fresh (ignore ledger)]"
 ---
 
 You are the **orchestrator** of an adversarial quality audit. In every mode except `--inline`, you do NOT audit the code yourself — you scope the work, dispatch fresh adversarial reviewer agent(s), and report the results.

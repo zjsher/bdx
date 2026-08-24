@@ -1,6 +1,0 @@
-interface:
-  display_name: "Plan"
-  short_description: "Shape implementation-ready work in Beads"
-  default_prompt: "Use $plan to shape this work directly in native Beads fields and relationships."
-policy:
-  allow_implicit_invocation: false

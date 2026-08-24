@@ -9,6 +9,15 @@
           }
         ],
         "matcher": ""
+      },
+      {
+        "hooks": [
+          {
+            "command": "bd prime --stealth --hook-json",
+            "type": "command"
+          }
+        ],
+        "matcher": ""
       }
     ]
   }

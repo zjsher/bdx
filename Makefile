@@ -1,4 +1,8 @@
-.PHONY: patch minor major release help test
+.PHONY: patch minor major release help test test-plugin test-install test-install-shell test-install-permissions test-hooks
+
+# Pick docker or fall back to podman so the test targets work for either runtime.
+DOCKER ?= $(shell command -v docker 2>/dev/null || command -v podman 2>/dev/null)
+TEST_IMAGE ?= ubuntu:24.04
 
 help:
 	@echo "Release workflow:"
@@ -8,8 +12,20 @@ help:
 	@echo "  make release                # print current version"
 	@echo "  make release VERSION=1.2.3  # set exact version"
 	@echo ""
+	@echo "Each target: bumps Claude + Codex plugin.json versions in lockstep, runs"
+	@echo "  git add . && lazy-changelog --prepend CHANGELOG.md"
+	@echo "Then review + commit + tag + push manually."
+	@echo ""
 	@echo "Testing:"
-	@echo "  make test                   # validate the slim Beads-native plugin"
+	@echo "  make test                   # everything that runs without docker"
+	@echo "  make test-plugin            # restored lifecycle/package invariants"
+	@echo "  make test-hooks             # PreToolUse guards + bdx-note end-to-end"
+	@echo ""
+	@echo "Installer testing (clean-slate container):"
+	@echo "  make test-install           # run scripts/install.sh in a fresh $(TEST_IMAGE)"
+	@echo "  make test-install-shell     # same, then drop into a shell for inspection"
+	@echo "  make test-install-permissions # focused local permission + session hook checks"
+	@echo "  make test-install TEST_IMAGE=debian:12-slim   # override base image"
 
 patch minor major:
 	@./dev/release.sh $@
@@ -21,5 +37,45 @@ release:
 		./dev/release.sh current; \
 	fi
 
-test:
-	@bash dev/test-native-plugin.sh
+# Run the installer end-to-end inside a throwaway Linux container. Skips
+# dolt because its installer wants sudo and dolt isn't load-bearing for
+# validating the bdx flow itself. Mounts the working tree read-only and
+# copies it into /tmp so the installer can run from any path without
+# accidentally mutating the host repo.
+_INSTALL_BOOTSTRAP = set -e; \
+	export DEBIAN_FRONTEND=noninteractive; \
+	apt-get update -qq && \
+	apt-get install -y -qq --no-install-recommends curl jq git ca-certificates sudo >/dev/null; \
+	cp -r /src /tmp/bdx-plugin; \
+	cd /tmp/bdx-plugin; \
+	bash scripts/install.sh --yes --skip-dolt
+
+test-install:
+	@test -n "$(DOCKER)" || (echo "no docker/podman on PATH — install one or set DOCKER=" >&2; exit 2)
+	@$(DOCKER) run --rm -t \
+		-v "$(CURDIR):/src:ro" \
+		$(TEST_IMAGE) \
+		bash -c '$(_INSTALL_BOOTSTRAP)'
+
+test-install-shell:
+	@test -n "$(DOCKER)" || (echo "no docker/podman on PATH — install one or set DOCKER=" >&2; exit 2)
+	@$(DOCKER) run --rm -it \
+		-v "$(CURDIR):/src:ro" \
+		$(TEST_IMAGE) \
+		bash -c '$(_INSTALL_BOOTSTRAP); echo; echo "--- installer finished. dropping into shell."; exec bash'
+
+test-install-permissions:
+	@bash dev/test-install-permissions.sh
+
+# Block/allow matrix for the PreToolUse guards + bdx-note end-to-end.
+# No container needed — runs in ~1s against a throwaway $AGENT_HOME.
+test-hooks:
+	@bash dev/test-narrative-hook.sh
+
+# The Markdown lifecycle is the product contract. Keep this gate separate from
+# behavioral hook tests so packaging regressions fail with a direct message.
+test-plugin:
+	@bash dev/test-plugin.sh
+
+# Everything that runs without docker.
+test: test-plugin test-hooks

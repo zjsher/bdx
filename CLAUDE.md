@@ -1,8 +1,33 @@
-# Project Instructions for AI Agents
+# Agent Instructions
 
-This file provides instructions and context for AI coding agents working on this project.
+Git and Dolt remote operations require explicit user or orchestrator authority.
 
-<!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:6cd5cc61 -->
+## Shell Safety
+
+Use explicit non-interactive flags for commands that may prompt.
+
+## Build & Test
+
+```bash
+make test
+```
+
+## Architecture
+
+bdx pairs Beads issues with durable Markdown under `$AGENT_HOME`:
+
+- Beads owns task identity, status, priority, dependencies, comments, and external
+  tracker synchronization.
+- Markdown owns the long-form plan, context dumps, summaries, and decision record.
+- Lifecycle skills (`plan`, `attach`, `check`, `dump`, `summarize`, and `close`)
+  keep those layers linked; implementation and review skills consume that record.
+
+Keep one copy of narrative: Beads fields and comments index the corresponding
+Markdown artifact instead of duplicating its prose. Provider integrations remain
+native Beads capabilities rather than bdx-specific synchronization code.
+
+
+<!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:970c3bf2 -->
 ## Beads Issue Tracker
 
 This project uses **bd (beads)** for issue tracking. Run `bd prime` to see full workflow context and commands.
@@ -46,6 +71,7 @@ This protocol applies when ending a Beads implementation workflow. It is subordi
 
    # Team-maintainer opt-in only, unless current instructions forbid it:
    git pull --rebase
+   bd dolt push
    git push
    git status
    ```
@@ -56,27 +82,3 @@ This protocol applies when ending a Beads implementation workflow. It is subordi
 - Do not commit or push without clear authority from the active profile or the current user request.
 - If a required sync or push is blocked, stop and report the exact command and error.
 <!-- END BEADS INTEGRATION -->
-
-
-## Build & Test
-
-```bash
-make test
-```
-
-## Architecture
-
-bdx is a six-skill, integration-agnostic layer over native Beads:
-
-- `plan`, `dump`, and `close` are thin user-invoked gates that persist through the
-  native Beads lifecycle.
-- `render` creates a disposable, read-only temp projection of linked Beads.
-- `build-loop` implements one settled Bead with tight executable checks and returns
-  a compact evidence bundle to the native Beads workflow.
-- `quality-audit` independently reviews the resulting code change.
-
-Do not add a parallel task store, Markdown plan lifecycle, hooks that block native
-Beads behavior, or provider-specific integration code. Beads owns all task state,
-narrative, dependencies, handoffs, memories, history, and external integrations.
-Thin skills may compose native Beads capabilities, but do not restate their CLI or
-lifecycle rules; `bd prime` and the official Beads skill are the source of truth.

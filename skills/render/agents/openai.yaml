@@ -1,6 +1,0 @@
-interface:
-  display_name: "Render"
-  short_description: "Open a joined temporary Beads view"
-  default_prompt: "Use $render to open a disposable Markdown view of the active Bead and its linked Beads."
-policy:
-  allow_implicit_invocation: false

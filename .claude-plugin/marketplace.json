@@ -3,12 +3,11 @@
   "owner": {
     "name": "Zach Sherbondy"
   },
-  "description": "Beads-native build and code-review disciplines for coding agents.",
   "plugins": [
     {
       "name": "bdx",
       "source": "./",
-      "description": "Six Beads-native skills: plan, dump, close, render, build-loop, and quality-audit."
+      "description": "Beads workflow skills + hooks: bd task lifecycle (plan/attach/dump/summarize/close) + disciplined slice-based implementation (slice/slice-review/slice-loop)."
     }
   ]
 }

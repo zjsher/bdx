@@ -1,7 +1,7 @@
 {
   "name": "bdx",
-  "version": "0.14.1",
-  "description": "Six Beads-native skills for planning, handoff, closure, rendering, implementation, and review.",
+  "version": "0.15.0+codex.20260824132244",
+  "description": "Beads workflow skills and hooks for durable planning, lightweight feature builds, per-increment assurance, handoff, and closure.",
   "author": {
     "name": "Zach Sherbondy",
     "url": "https://github.com/zeejers"
@@ -17,8 +17,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "bdx",
-    "shortDescription": "Plan, build, hand off, close, and review Beads",
-    "longDescription": "Use thin native-Beads planning, handoff, closure, and rendering entry points, plus a tight implementation loop and fresh-context quality audit. Beads remains the sole task and integration layer.",
+    "shortDescription": "Durable Beads workflows for coding agents",
+    "longDescription": "Plan, attach, build ordinary features in a tight durable loop, choose per-increment slices when the evidence requires them, then summarize and close Beads tasks.",
     "developerName": "Zach Sherbondy",
     "category": "Productivity",
     "capabilities": [
@@ -27,9 +27,10 @@
     ],
     "websiteURL": "https://github.com/zeejers/bdx",
     "defaultPrompt": [
-      "Plan this work directly in Beads.",
-      "Build and review this Beads task.",
-      "Dump a handoff or close the current Bead."
+      "Plan this work as a durable Beads task.",
+      "Attach this session to an existing Beads task.",
+      "Build the next planned feature milestone with tight feedback and durable progress.",
+      "Run independently reviewed slices for each increment of this feature."
     ]
   }
 }

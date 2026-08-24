@@ -1,3 +1,27 @@
+## v0.15.0 (2026-08-24)
+
+### Restored lifecycle
+
+- Restored the complete pre-0.14 Markdown-backed workflow: `plan`, `attach`,
+  `check`, `dump`, `summarize`, and `close` again persist durable narrative under
+  `$AGENT_HOME` while Beads retains task identity, status, and dependencies.
+- Restored the supporting lifecycle hooks, helper scripts, manifest/persona tools,
+  implementation skills, examples, installer behavior, and focused tests from
+  v0.13.0.
+- Kept external tracker synchronization provider-neutral by continuing to use
+  native Beads integrations; bdx does not add a second Linear/Jira sync layer.
+
+## v0.13.0 (2026-08-23)
+
+### ✨ Features
+- [commits] Added safe Linear projection discovery for locating Linear workspace/project mappings
+- [commits] Added bounded Linear issue transport to move issues between systems with limits/safeguards
+- [commits] Added inbound Linear reconciliation to sync changes from Linear back into the local system
+- [commits] Installed native Beads agent integration for direct Beads connectivity
+
+### 🛠️ Improvements
+- [commits] **Breaking:** Refactored `bdx` to be Beads-native, changing its core architecture/behavior
+
 ## v0.14.0 (2026-08-23)
 
 ### Breaking change
