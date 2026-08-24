@@ -1,3 +1,11 @@
+## v0.14.1 (2026-08-24)
+
+### 🛠️ Improvements
+- [commits] Reverted implementation to restore the Markdown (MD) based approach, replacing a previously used alternative method
+- [commits] Bumped version number for release
+
+*Note: No code diffs were provided alongside these commits, so specific implementation details could not be verified.*
+
 ## v0.15.0 (2026-08-24)
 
 ### Restored lifecycle
