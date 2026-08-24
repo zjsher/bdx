@@ -1,6 +1,6 @@
 {
   "name": "bdx",
-  "version": "0.15.0+codex.20260824132244",
+  "version": "0.15.0",
   "description": "Beads workflow skills and hooks for durable planning, lightweight feature builds, per-increment assurance, handoff, and closure.",
   "author": {
     "name": "Zach Sherbondy",
@@ -8,12 +8,7 @@
   },
   "homepage": "https://github.com/zeejers/bdx#readme",
   "repository": "https://github.com/zeejers/bdx",
-  "keywords": [
-    "beads",
-    "workflow",
-    "task-management",
-    "coding-agents"
-  ],
+  "keywords": ["beads", "workflow", "task-management", "coding-agents"],
   "skills": "./skills/",
   "interface": {
     "displayName": "bdx",
@@ -21,10 +16,7 @@
     "longDescription": "Plan, attach, build ordinary features in a tight durable loop, choose per-increment slices when the evidence requires them, then summarize and close Beads tasks.",
     "developerName": "Zach Sherbondy",
     "category": "Productivity",
-    "capabilities": [
-      "Interactive",
-      "Write"
-    ],
+    "capabilities": ["Interactive", "Write"],
     "websiteURL": "https://github.com/zeejers/bdx",
     "defaultPrompt": [
       "Plan this work as a durable Beads task.",
