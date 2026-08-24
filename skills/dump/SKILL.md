@@ -5,7 +5,7 @@ description: Snapshot mid-session head-state to $AGENT_HOME/context/ so the user
 
 ## Codex host execution (mandatory)
 
-When the harness is Codex, invoke every shell tool call that runs `bd` with `sandbox_permissions: "require_escalated"`; for a direct `bd ...` command, also set `prefix_rule: ["bd"]`. The installed allow rule only pre-approves escalation—it does not move a default call outside the workspace sandbox. This applies to read-only commands too. If a sandboxed call reports a Dolt connection failure, retry at host level before diagnosing Dolt as down; wrappers inherit the sandbox. Claude Code and other non-Codex harnesses must ignore this section and use their normal execution path.
+When the harness is Codex, invoke every shell tool call that runs `bd` with `sandbox_permissions: "require_escalated"`; for a direct `bd ...` command, also set `prefix_rule: ["bd"]`. Run direct `bdx-sync-status ...` and `bdx-plan-frontmatter ...` calls the same way with their exact command names as `prefix_rule`; both may write `$AGENT_HOME` outside the repository sandbox, and status sync also reads Beads. The installed allow rules only pre-approve escalation; they do not move a default shell call outside the workspace sandbox. Claude Code and other non-Codex harnesses must ignore this section and use their normal execution path.
 
 Snapshot the current session's head-state to `$AGENT_HOME/context/` so the user can close the session without losing the thread — a future `attach` re-enters cold and picks up where this left off. Written as an **Obsidian-friendly note**: graph view shows how the dump connects to summaries, plans, files, concepts, and tickets, so every in-vault cross-reference is a wikilink (`[[...]]`).
 
@@ -20,7 +20,7 @@ This is broader and lossier than `summarize` — it captures conversational stat
 - **Tick any `- [ ]` whose work is clearly finished** based on the conversation. Conservative — leave it open if there's any doubt. The plan file's role as a live progress view is exactly what makes peeking at it useful, but a falsely-ticked box poisons that.
 - **Optionally append one inline divergence annotation** per ticked box, in the form `- [x] <original text> → <one-line divergence>`. Same rules as `check`'s `--note`: single line, no markdown beyond inline code, append-only — never rewrite the original checkbox text.
 - **Never rewrite descriptive prose, reorder sections, delete content, or restructure the plan.** The plan-as-prompt diff against the eventual summary is load-bearing — that's how a future reader sees "what we set out to do" vs "what shipped." `dump` preserves it; `summarize` is where any prose-level reflection lives, and even there the default is to leave the plan intact.
-- **Append the harness-qualified bdx session identity to the plan's `sessions:` frontmatter** if available and not already present.
+- **Project frontmatter through the deterministic writer.** After the checkbox sweep, call `bdx-sync-status <bd-id>` and use `bdx-plan-frontmatter <bd-id> --session <identity>` when an identity exists. Never hand-edit `status:` or `sessions:`.
 
 If the plan needs structural change (a new phase, a deleted step, a reframed goal), that's a signal the task's shape has shifted and the user should decide explicitly — not a mutation `dump` should make on its own.
 
@@ -137,8 +137,9 @@ related:
 4. Resolve parent for frontmatter: `bd dep list <id> --direction=down --type parent-child --json` → first `id` (empty if none, or if `bd: none`).
 5. Resolve the harness-qualified bdx session identity: prefer `$BDX_SESSION_ID`; otherwise use the exact `bdx-session-id` value injected by SessionStart; otherwise prefix a non-empty `$CLAUDE_SESSION_ID` as `claude-code:<id>`. If none is available, set `sessions: []`.
 6. Walk back through the conversation and fill each section, wikilinking files / concepts / tickets / prior notes.
-7. **Plan sweep** (skip if `bd: none`): locate `$AGENT_HOME/plan/<bd-id>-*.md`. For each `- [ ]` line whose step is clearly done per the conversation, flip it to `- [x]` (and append `→ <one-line divergence>` if the implementation diverged in a small, captureable way — see "Plan mutation" rules above). Do not touch any other text in the plan. Append the resolved bdx session identity to the plan's `sessions:` list if available and not already present.
-8. Write the context file with `kind: agent-note`, the resolved `parent:` (empty if none), and the resolved bdx session identity as a quoted `sessions:` entry (or `[]`).
-9. Cross-link back to beads: `bd comment <bd-id> "context: $AGENT_HOME/context/<label>--<date>-<time>.md"` — makes the dump discoverable from `bd show`.
-10. If any checkboxes were ticked in step 7, optionally `bd comment <bd-id> "checked (via dump): <one-line list>"` so the bd thread reflects progress (skip if you'd rather keep the comment thread quiet — the plan diff itself is a record).
-11. Report the context file path and the count of ticked boxes (if any) to the user in one line.
+7. **Plan sweep** (skip if `bd: none`): locate `$AGENT_HOME/plan/<bd-id>-*.md`. For each `- [ ]` line whose step is clearly done per the conversation, flip it to `- [x]` (and append `→ <one-line divergence>` if the implementation diverged in a small, captureable way — see "Plan mutation" rules above). Do not touch any other text in the plan.
+8. **Frontmatter projection** (skip if `bd: none`): run `bdx-sync-status <bd-id>`, then `bdx-plan-frontmatter <bd-id> --session <identity>` when an identity exists. These deterministic scripts own live `status:` and `sessions:` mutations.
+9. Write the context file with `kind: agent-note`, the resolved `parent:` (empty if none), and the resolved bdx session identity as a quoted `sessions:` entry (or `[]`).
+10. Cross-link back to beads: `bd comment <bd-id> "context: $AGENT_HOME/context/<label>--<date>-<time>.md"` — makes the dump discoverable from `bd show`.
+11. If any checkboxes were ticked in step 7, optionally `bd comment <bd-id> "checked (via dump): <one-line list>"` so the bd thread reflects progress (skip if you'd rather keep the comment thread quiet — the plan diff itself is a record).
+12. Report the context file path and the count of ticked boxes (if any) to the user in one line.

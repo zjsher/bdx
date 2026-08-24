@@ -55,6 +55,10 @@ ACTUAL_SKILLS=$(find skills -mindepth 1 -maxdepth 1 -type d \
 for required in \
   hooks/hooks.json \
   scripts/bd-auto-attach.sh \
+  scripts/bdx-resolve-project \
+  scripts/bdx-plan-frontmatter \
+  scripts/bdx-sync-status \
+  scripts/bdx-validate-agent-home-delete \
   scripts/bdx-ensure-agent-home.sh \
   scripts/bdx-note \
   scripts/block-bare-bd-close.sh \
@@ -69,5 +73,11 @@ rg -q 'plan → attach → build-loop → close' README.md || \
   fail "README no longer documents the attach lifecycle"
 rg -q '\$AGENT_HOME/plan/' skills/attach/SKILL.md || \
   fail "attach no longer loads the durable Markdown plan"
+rg -q 'bdx-resolve-project' skills/attach/SKILL.md || \
+  fail "attach no longer resolves per-project Beads databases"
+! rg -q 'remove \\$BEADS_DIR|rm -rf.*beads_dir' scripts/uninstall.sh || \
+  fail "uninstaller must not offer to delete Beads project data"
+rg -q 'bdx-validate-agent-home-delete' scripts/uninstall.sh || \
+  fail "uninstaller no longer validates AGENT_HOME before recursive deletion"
 
 echo "legacy Markdown-backed plugin tests passed"

@@ -18,9 +18,15 @@ if [ $# -lt 1 ]; then
 fi
 
 BD_ID="$1"; shift
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+
+# Resolve the owning repository before asking Beads for issue state. Exporting
+# the path lets the SessionStart hook verify the same authoritative project
+# without scanning again.
+PROJECT_DIR=$("$SCRIPT_DIR/bdx-resolve-project" "$BD_ID")
 
 # Derive a filesystem-safe slug from the bd title for -n naming
-SLUG=$(bd show "$BD_ID" --json 2>/dev/null \
+SLUG=$(bd -C "$PROJECT_DIR" show "$BD_ID" --json 2>/dev/null \
   | jq -r '.[0].title // empty' \
   | tr '[:upper:]' '[:lower:]' \
   | tr -c 'a-z0-9' '-' \
@@ -30,4 +36,6 @@ SLUG=$(bd show "$BD_ID" --json 2>/dev/null \
 NAME="$BD_ID${SLUG:+-$SLUG}"
 
 export BD_ID
+export BDX_PROJECT_DIR="$PROJECT_DIR"
+cd "$PROJECT_DIR"
 exec claude -n "$NAME" "$@"

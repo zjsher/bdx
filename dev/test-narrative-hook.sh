@@ -12,6 +12,7 @@ set -u
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 HOOK="$ROOT/scripts/block-bd-narrative-writes.sh"
+CLOSE_HOOK="$ROOT/scripts/block-bare-bd-close.sh"
 NOTE="$ROOT/scripts/bdx-note"
 PASS=0; FAIL=0
 
@@ -64,6 +65,28 @@ expect ALLOW 'git commit -m "add bd update --notes guard"'
 expect ALLOW 'echo "run bd note to append" >> README.md'
 expect BLOCK '$(bd note bd-abc "in a subshell")'      # ( is a command position
 expect BLOCK 'bd list || bd note bd-abc "fallback"'
+
+expect_close() {
+  local want="$1" cmd="$2" got
+  printf '{"tool_name":"Bash","tool_input":{"command":%s}}' "$(jq -Rn --arg c "$cmd" '$c')" \
+    | "$CLOSE_HOOK" >/dev/null 2>&1
+  [ $? -eq 2 ] && got=BLOCK || got=ALLOW
+  if [ "$got" = "$want" ]; then
+    PASS=$((PASS+1)); printf '  ok    %-5s %s\n' "$got" "$cmd"
+  else
+    FAIL=$((FAIL+1)); printf '  FAIL  want=%s got=%s  %s\n' "$want" "$got" "$cmd"
+  fi
+}
+
+echo
+echo "== close lifecycle guard =="
+expect_close BLOCK 'bd close bd-abc'
+expect_close BLOCK 'bd -C /tmp/project close bd-abc'
+expect_close BLOCK 'bd -C "/tmp/project with spaces" close bd-abc'
+expect_close BLOCK 'cd /tmp && bd -C /tmp/project update bd-abc --status closed'
+expect_close ALLOW 'BDX_ALLOW_BARE_BD_CLOSE=1 bd -C /tmp/project close bd-abc'
+expect_close ALLOW 'bd -C /tmp/project close --help'
+expect_close ALLOW 'git commit -m "call bd -C repo close through bdx"'
 
 echo
 echo "== KNOWN GAPS: PreToolUse hands us an opaque string, so these leak =="

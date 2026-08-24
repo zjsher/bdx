@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Resolve an AGENT_HOME deletion target and reject broad or user-home paths.
+
+set -euo pipefail
+
+bdx_validate_agent_home_delete() {
+  local target="${1:-}" canonical_target canonical_home
+  [ -n "$target" ] && [ -d "$target" ] || {
+    echo "bdx-validate-agent-home-delete: not a directory: $target" >&2
+    return 1
+  }
+
+  canonical_target=$(CDPATH= cd -- "$target" && pwd -P)
+  canonical_home=$(CDPATH= cd -- "$HOME" && pwd -P)
+
+  case "$canonical_target" in
+    /|/Applications|/Library|/System|/Users|/bin|/etc|/home|/opt|/private|/root|/sbin|/tmp|/usr|/var)
+      echo "bdx-validate-agent-home-delete: refusing broad target: $canonical_target" >&2
+      return 1
+      ;;
+  esac
+
+  if [ "$canonical_target" = "$canonical_home" ]; then
+    echo "bdx-validate-agent-home-delete: refusing user home: $canonical_target" >&2
+    return 1
+  fi
+
+  # Reject any ancestor of HOME as well. This prevents a malicious or mistaken
+  # AGENT_HOME such as /Users from deleting the user's home along with it.
+  case "$canonical_home/" in
+    "$canonical_target/"*)
+      echo "bdx-validate-agent-home-delete: refusing ancestor of user home: $canonical_target" >&2
+      return 1
+      ;;
+  esac
+
+  printf '%s\n' "$canonical_target"
+}
+
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+  if [ "$#" -ne 1 ] || [ -z "${1:-}" ]; then
+    echo "usage: bdx-validate-agent-home-delete <directory>" >&2
+    exit 2
+  fi
+  bdx_validate_agent_home_delete "$1"
+fi

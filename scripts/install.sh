@@ -3,8 +3,8 @@
 #
 #   1. bd          (beads CLI, via gastownhall/beads)
 #   2. dolt        (homebrew on macOS when available, official installer otherwise)
-#   3. env         (BEADS_DIR + AGENT_HOME exports in your shell rc, with prompts)
-#   4. bd init     (initialize the global beads repo at $BEADS_DIR, shared-server)
+#   3. env         (AGENT_HOME export in your shell rc, with prompt)
+#   4. bd setup    (explain per-project `bd init`; no global database)
 #   5. templates   (seed example manifest + DHH/Linus personas into $AGENT_HOME)
 #   6. perms       (Claude allowlist + Codex exec-policy rule)
 #
@@ -183,8 +183,8 @@ main() {
   fi
 
   # --- 3. shell profile env vars ----------------------------------------
-  bold "3/6  shell profile (BEADS_DIR, AGENT_HOME)"
-  local rc shell_name chosen_beads_dir="" chosen_agent_home=""
+  bold "3/6  shell profile (AGENT_HOME)"
+  local rc shell_name chosen_agent_home=""
   if [ "$SKIP_ENV" = 1 ]; then
     info "skipped (--skip-env)"
   else
@@ -213,17 +213,6 @@ main() {
       ok "added $var=\"$val\" to $rc"
     }
 
-    # BEADS_DIR — always ~/.beads when we set it. Skip the prompt entirely if
-    # the user already has BEADS_DIR exported (synced from another machine,
-    # configured manually, etc) — they've already made the choice and a
-    # different path is the most likely reason it's set.
-    if [ -n "${BEADS_DIR:-}" ]; then
-      ok "BEADS_DIR already set in env: $BEADS_DIR — using existing"
-      chosen_beads_dir="$BEADS_DIR"
-    elif ask_yn "Add 'export BEADS_DIR=~/.beads' to your shell profile?" Y; then
-      chosen_beads_dir="$HOME/.beads"
-      add_export BEADS_DIR "$chosen_beads_dir"
-    fi
     # AGENT_HOME — same detection. If the user has it set (commonly to a
     # synced path like ~/Dropbox/Notes/agent), honor that and skip the prompt.
     if [ -n "${AGENT_HOME:-}" ]; then
@@ -235,47 +224,21 @@ main() {
     fi
   fi
 
-  # --- 4. bd init (global beads repo) -----------------------------------
-  # Beads refuses to init from inside a `.beads/` cwd, so we run from $HOME
-  # and let BEADS_DIR direct it to the global location. --database beads_global
-  # uses the shared db that --shared-server provisions; --stealth keeps it
-  # out of any per-repo git tracking; --quiet silences the wizard banners.
-  bold "4/6  bd init (global beads repo)"
+  # --- 4. per-project bd setup ------------------------------------------
+  # bdx uses the manifest to route across repositories; it does not own or
+  # initialize a global task database. Native Beads remains authoritative in
+  # each project and therefore keeps provider sync configuration project-local.
+  bold "4/6  beads databases (per-project)"
   if [ "$SKIP_INIT" = 1 ]; then
     info "skipped (--skip-init)"
   elif ! command -v bd >/dev/null 2>&1; then
-    warn "bd not on PATH — skipping init. Open a new shell and re-run this installer."
+    warn "bd not on PATH — initialize each project after opening a new shell"
   else
-    local target="${BEADS_DIR:-${chosen_beads_dir:-$HOME/.beads}}"
-    if [ -f "$target/beads.db" ] || [ -d "$target/.beads" ]; then
-      ok "$target already initialized (found existing beads.db / .beads/)"
-    else
-      info "target path:   $target"
-      info "issue prefix:  bd  (issues will be ids like bd-a1b)"
-      info "flags:         --prefix bd --quiet --stealth (role pre-set via git config)"
-      if ask_yn "Run bd init now with these settings?" Y; then
-        mkdir -p "$target"
-        # Lock down to owner-only — BEADS_DIR holds credentials + dolt data.
-        # Done before bd init so the dir's mode is correct from creation.
-        chmod 700 "$target"
-        # Pre-set the maintainer role in global git config. bd init's --role
-        # flag only applies inside a git repo (isGitRepo() guard); at $HOME
-        # without a repo, the role wizard would fire even with --role passed.
-        # Setting beads.role in ~/.gitconfig makes bd pick it up regardless.
-        if command -v git >/dev/null 2>&1; then
-          git config --global beads.role maintainer 2>/dev/null || true
-        fi
-        # --prefix bd is required: without it, bd derives the prefix from
-        # cwd basename, which becomes the user's name when run from $HOME.
-        if ( cd "$HOME" && BEADS_DIR="$target" bd init --prefix bd --quiet --stealth ); then
-          ok "initialized $target (mode 700)"
-          info "to change the prefix later: bd config set issue-prefix <new>"
-        else
-          warn "bd init failed — re-run with: git config --global beads.role maintainer && cd \$HOME && BEADS_DIR=$target bd init --prefix bd --quiet --stealth"
-        fi
-      else
-        info "skipped — run: git config --global beads.role maintainer && cd \$HOME && BEADS_DIR=$target bd init --prefix bd --quiet --stealth"
-      fi
+    ok "bdx will use each repository's native Beads database"
+    info "for a new repo: cd <repo> && bd init"
+    info "then add it to \$AGENT_HOME/manifest.md with /bdx:manifest"
+    if [ -n "${BEADS_DIR:-}" ]; then
+      warn "BEADS_DIR is currently exported; unset it for per-project routing"
     fi
   fi
 
@@ -353,26 +316,55 @@ main() {
       ah_pattern="~${target_ah#$HOME}"
     fi
     local settings_file="$HOME/.claude/settings.json"
+    local claude_provenance_file="$HOME/.claude/bdx-managed-permissions.json"
     local codex_home="${CODEX_HOME:-$HOME/.codex}"
     local codex_rules_file="$codex_home/rules/bdx.rules"
     info "Claude: $settings_file"
     info "Codex:  $codex_rules_file"
-    info "adds:    Claude Bash(bd:*) + AGENT_HOME access; Codex prefix_rule([\"bd\"], allow)"
+    info "adds:    Claude bd/bdx wrapper access + AGENT_HOME; matching Codex allow rules"
     info "(existing settings and rules are preserved; managed entries are idempotent)"
     if ask_yn "Install bdx permissions for Claude Code and Codex?" Y; then
       if ! command -v jq >/dev/null 2>&1; then
         warn "jq not on PATH — skipped Claude Code settings merge"
       else
         mkdir -p "$HOME/.claude"
+        local requested_permissions current_permissions added_permissions prior_managed_permissions
+        requested_permissions=$(jq -cn --arg ah "$ah_pattern" '[
+          "Bash(bd:*)",
+          "Bash(bdx-resolve-project:*)",
+          "Bash(bdx-plan-frontmatter:*)",
+          "Bash(bdx-sync-status:*)",
+          "Read(\($ah)/**)",
+          "Write(\($ah)/**)",
+          "Edit(\($ah)/**)"
+        ]')
+        if [ -f "$settings_file" ]; then
+          current_permissions=$(jq -ce '.permissions.allow // []' "$settings_file" 2>/dev/null || printf '[]')
+        else
+          current_permissions='[]'
+        fi
+        added_permissions=$(jq -cn --argjson requested "$requested_permissions" \
+          --argjson current "$current_permissions" '$requested - $current')
+        if [ -f "$claude_provenance_file" ]; then
+          prior_managed_permissions=$(jq -ce 'if type == "array" then . else error("not an array") end' \
+            "$claude_provenance_file" 2>/dev/null || printf '[]')
+        else
+          prior_managed_permissions='[]'
+        fi
         local merge_jq='.permissions.allow = ((.permissions.allow // []) + [
           "Bash(bd:*)",
+          "Bash(bdx-resolve-project:*)",
+          "Bash(bdx-plan-frontmatter:*)",
+          "Bash(bdx-sync-status:*)",
           "Read(\($ah)/**)",
           "Write(\($ah)/**)",
           "Edit(\($ah)/**)"
         ] | unique)'
+        local claude_merge_ok=0
         if [ -f "$settings_file" ]; then
           if jq --arg ah "$ah_pattern" "$merge_jq" "$settings_file" > "$settings_file.tmp" 2>/dev/null; then
             mv -f "$settings_file.tmp" "$settings_file"
+            claude_merge_ok=1
             ok "merged bdx allowlist into $settings_file"
           else
             rm -f "$settings_file.tmp"
@@ -380,22 +372,41 @@ main() {
           fi
         else
           if jq --arg ah "$ah_pattern" "$merge_jq" <<<'{}' > "$settings_file"; then
+            claude_merge_ok=1
             ok "wrote $settings_file with bdx allowlist"
           else
             warn "failed to write $settings_file"
           fi
         fi
+        if [ "$claude_merge_ok" = 1 ]; then
+          jq -cn --argjson prior "$prior_managed_permissions" --argjson added "$added_permissions" \
+            '$prior + $added | unique' > "$claude_provenance_file.tmp"
+          mv -f "$claude_provenance_file.tmp" "$claude_provenance_file"
+          ok "recorded installer-owned Claude entries in $claude_provenance_file"
+        fi
       fi
 
       local codex_marker="# BEGIN bdx managed rule"
+      local codex_end_marker="# END bdx managed rule"
       mkdir -p "$(dirname "$codex_rules_file")"
-      if [ -f "$codex_rules_file" ] && grep -Fqx "$codex_marker" "$codex_rules_file"; then
-        ok "Codex bdx rule already present in $codex_rules_file"
+      local codex_rules_tmp="$codex_rules_file.tmp"
+      if [ -f "$codex_rules_file" ]; then
+        awk -v begin="$codex_marker" -v end="$codex_end_marker" '
+          $0 == begin { managed=1; next }
+          managed && $0 == end { managed=0; next }
+          !managed { lines[++count]=$0 }
+          END {
+            while (count > 0 && lines[count] == "") count--
+            for (i=1; i<=count; i++) print lines[i]
+          }
+        ' "$codex_rules_file" > "$codex_rules_tmp"
       else
-        if [ -s "$codex_rules_file" ]; then
-          printf '\n' >> "$codex_rules_file"
-        fi
-        cat >> "$codex_rules_file" <<'BDX_CODEX_RULE'
+        : > "$codex_rules_tmp"
+      fi
+      if [ -s "$codex_rules_tmp" ]; then
+        printf '\n' >> "$codex_rules_tmp"
+      fi
+      cat >> "$codex_rules_tmp" <<'BDX_CODEX_RULE'
 # BEGIN bdx managed rule
 # Pre-approves host execution when a bdx skill explicitly requests it so bd can
 # reach its configured Dolt store. An allow rule does not itself move a default
@@ -414,10 +425,25 @@ prefix_rule(
         "bdx ready",
     ],
 )
+prefix_rule(
+    pattern = ["bdx-resolve-project"],
+    decision = "allow",
+    justification = "bdx resolves a Bead to its owning per-project database",
+)
+prefix_rule(
+    pattern = ["bdx-plan-frontmatter"],
+    decision = "allow",
+    justification = "bdx atomically updates managed live-plan frontmatter",
+)
+prefix_rule(
+    pattern = ["bdx-sync-status"],
+    decision = "allow",
+    justification = "bdx projects authoritative Beads status into live plan frontmatter",
+)
 # END bdx managed rule
 BDX_CODEX_RULE
-        ok "installed Codex bdx rule in $codex_rules_file"
-      fi
+      mv -f "$codex_rules_tmp" "$codex_rules_file"
+      ok "installed current Codex bdx rules in $codex_rules_file"
     else
       info "skipped — copy the Claude and Codex snippets from the README when ready"
     fi

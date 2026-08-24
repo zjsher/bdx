@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Refresh a live plan's status projection from its authoritative Beads issue.
+
+set -euo pipefail
+
+if [ "$#" -ne 1 ] || [ -z "${1:-}" ]; then
+  echo "usage: bdx-sync-status <bd-id>" >&2
+  exit 2
+fi
+
+BD_ID="$1"
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+PROJECT_DIR=$("$SCRIPT_DIR/bdx-resolve-project" "$BD_ID")
+ISSUE_JSON=$(bd -C "$PROJECT_DIR" show "$BD_ID" --json)
+STATUS=$(printf '%s' "$ISSUE_JSON" | jq -er 'if type == "array" and length == 1 then .[0].status else error("expected one issue") end')
+
+PLAN=$("$SCRIPT_DIR/bdx-plan-frontmatter" "$BD_ID" --status "$STATUS")
+printf 'Synced %s status=%s — %s\n' "$BD_ID" "$STATUS" "$PLAN"

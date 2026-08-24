@@ -124,7 +124,7 @@ created: <YYYY-MM-DD>
 aliases: []
 tags: [plan, <project-or-area>]
 private: false   # true = personal/side-project, skip team sync
-status: draft   # agents flip to in-progress / done via bd, not here
+status: open    # cached Beads projection; deterministic tools refresh it
 rank: <0-99>   # seeded from bd priority at creation; manual override for fine-grained Obsidian sort. bd remains canonical.
 sessions:
   - "<harness>:<session-id>"   # from the bdx SessionStart identity

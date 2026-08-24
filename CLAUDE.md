@@ -16,15 +16,18 @@ make test
 
 bdx pairs Beads issues with durable Markdown under `$AGENT_HOME`:
 
-- Beads owns task identity, status, priority, dependencies, comments, and external
-  tracker synchronization.
+- Beads owns agent task identity, status, priority, dependencies, comments, and
+  optional agent-plane sharing.
 - Markdown owns the long-form plan, context dumps, summaries, and decision record.
 - Lifecycle skills (`plan`, `attach`, `check`, `dump`, `summarize`, and `close`)
   keep those layers linked; implementation and review skills consume that record.
+- A live plan's `status:` is a cached Beads projection. Use
+  `bdx-sync-status <id>` after external changes; never hand-edit `status:` or
+  `sessions:`. Context dumps and summaries remain historical snapshots.
 
 Keep one copy of narrative: Beads fields and comments index the corresponding
-Markdown artifact instead of duplicating its prose. Provider integrations remain
-native Beads capabilities rather than bdx-specific synchronization code.
+Markdown artifact instead of duplicating its prose. Human trackers are separate,
+explicit links or publications—not mirrored agent-task stores.
 
 
 <!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:970c3bf2 -->

@@ -16,9 +16,9 @@ AGENT_HOME="${AGENT_HOME:-$AGENT_HOME_DEFAULT}"
 mkdir -p "$AGENT_HOME/plan" "$AGENT_HOME/context" "$AGENT_HOME/summary" "$AGENT_HOME/inbox"
 
 # Propagate to downstream tool calls in this session, and put the plugin's
-# scripts/ on PATH so `bdx-note` (and `bdc`) are callable by name without the
-# user having symlinked anything. The narrative-write hook tells agents to run
-# `bdx-note ...`; that instruction has to actually resolve.
+# scripts/ on PATH so `bdx-note`, `bdc`, and the deterministic status/frontmatter
+# tools are callable by name without the user having symlinked anything. Skill
+# instructions and guard hooks name these commands, so they must resolve.
 SCRIPTS_DIR=$(cd "$(dirname "$0")" && pwd)
 
 if [ -n "${CLAUDE_ENV_FILE:-}" ]; then

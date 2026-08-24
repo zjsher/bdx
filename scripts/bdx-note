@@ -118,8 +118,35 @@ ENTRY=$(printf '%s' "$TEXT" | awk -v stamp="$STAMP" '
 
 # ---- append to ## Log (creating it if absent) --------------------------------
 
-TMP=$(mktemp "${TMPDIR:-/tmp}/bdx-note.XXXXXX") || exit 1
-trap 'rm -f "$TMP"' EXIT
+# Coordinate with status/session projection: both are whole-file transforms,
+# so they must share the same per-plan lock and same-directory atomic replace.
+LOCK_DIR="$PLAN.bdx-lock"
+acquired=0
+for _attempt in $(seq 1 100); do
+  if mkdir "$LOCK_DIR" 2>/dev/null; then
+    acquired=1
+    printf '%s\n' "$$" > "$LOCK_DIR/pid"
+    break
+  fi
+  sleep 0.05
+done
+if [ "$acquired" -ne 1 ]; then
+  echo "bdx-note: timed out waiting for plan lock: $LOCK_DIR" >&2
+  exit 1
+fi
+
+TMP=""
+cleanup() {
+  [ -z "$TMP" ] || rm -f -- "$TMP"
+  rm -f -- "$LOCK_DIR/pid"
+  rmdir -- "$LOCK_DIR" 2>/dev/null || true
+}
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+TMP=$(mktemp "${PLAN}.tmp.XXXXXX") || exit 1
 
 # Passed via the environment, not -v: awk's -v can't carry a newline, and a
 # note is allowed to be more than one line.
@@ -166,7 +193,9 @@ BDX_NOTE_ENTRY="$ENTRY" awk '
   }
 ' "$PLAN" > "$TMP" || exit 1
 
-cat "$TMP" > "$PLAN" || exit 1
+chmod --reference="$PLAN" "$TMP" 2>/dev/null || chmod "$(stat -f '%Lp' "$PLAN" 2>/dev/null || stat -c '%a' "$PLAN")" "$TMP"
+mv -f -- "$TMP" "$PLAN" || exit 1
+TMP=""
 
 [ "$QUIET" = "1" ] || {
   echo "$BD ← $ENTRY"

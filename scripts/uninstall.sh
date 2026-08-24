@@ -2,7 +2,7 @@
 # bdx uninstaller — reverse the bdx installer.
 #
 # Prompts for each teardown step. By design this script does NOT touch your
-# shell profile (BEADS_DIR / AGENT_HOME exports stay until you remove them by
+# shell profile (the AGENT_HOME export stays until you remove it by
 # hand). Defaults are conservative: destructive ops default to "no".
 #
 # Usage:
@@ -13,19 +13,50 @@
 #   ./uninstall.sh --dry-run      # print what would be removed; touch nothing
 #
 # Note: --yes accepts DEFAULTS, not "yes to everything." Destructive prompts
-# (deleting $BEADS_DIR / $AGENT_HOME) default to no, so --yes will NOT delete
+# (deleting $AGENT_HOME) default to no, so --yes will NOT delete
 # data. To force-delete data without prompts, run interactively and answer y.
 #
 # Steps (each prompted independently):
 #   1. Stop the running dolt server, if any
 #   2. Remove the bd binary
 #   3. Remove the dolt binary (brew uninstall on macOS when applicable)
-#   4. Remove $BEADS_DIR (DESTRUCTIVE — all issues, history, dolt data)
+#   4. Remove bdx-managed Claude/Codex permissions
 #   5. Remove $AGENT_HOME (DESTRUCTIVE — all plans, contexts, summaries)
+#
+# Per-project Beads databases are user project data and are never removed.
 
 set -eu
 
 main() {
+  local script_source="${BASH_SOURCE[0]:-}" script_dir=""
+  # Only trust a sibling helper when Bash is executing a real on-disk script.
+  # For `curl ... | bash` and process substitution, use the embedded validator;
+  # never reinterpret the caller's current directory as the script directory.
+  if [ -n "$script_source" ] && [ -f "$script_source" ]; then
+    case "$script_source" in /dev/fd/*|/proc/self/fd/*) ;; *)
+      script_dir=$(CDPATH= cd -- "$(dirname -- "$script_source")" && pwd)
+      ;;
+    esac
+  fi
+  if [ -n "$script_dir" ] && [ -r "$script_dir/bdx-validate-agent-home-delete" ]; then
+    # shellcheck source=./bdx-validate-agent-home-delete
+    . "$script_dir/bdx-validate-agent-home-delete"
+  else
+    # `curl .../uninstall.sh | bash` has no sibling scripts. Keep the same
+    # safety boundary inline so the advertised standalone path stays safe.
+    bdx_validate_agent_home_delete() {
+      local target="${1:-}" canonical_target canonical_home
+      [ -n "$target" ] && [ -d "$target" ] || return 1
+      canonical_target=$(CDPATH= cd -- "$target" && pwd -P)
+      canonical_home=$(CDPATH= cd -- "$HOME" && pwd -P)
+      case "$canonical_target" in
+        /|/Applications|/Library|/System|/Users|/bin|/etc|/home|/opt|/private|/root|/sbin|/tmp|/usr|/var) return 1 ;;
+      esac
+      [ "$canonical_target" != "$canonical_home" ] || return 1
+      case "$canonical_home/" in "$canonical_target/"*) return 1 ;; esac
+      printf '%s\n' "$canonical_target"
+    }
+  fi
   local YES=0 DRY=0
   for arg in "$@"; do
     case "$arg" in
@@ -144,42 +175,85 @@ main() {
     fi
   fi
 
-  # --- 4. $BEADS_DIR (DESTRUCTIVE) ---------------------------------------
-  bold "4/5  remove \$BEADS_DIR (issues + dolt data)"
-  local beads_dir="${BEADS_DIR:-$HOME/.beads}"
-  if [ ! -d "$beads_dir" ]; then
-    info "$beads_dir does not exist — nothing to remove"
-  else
-    danger "this will permanently delete: $beads_dir"
-    danger "contents include all bd issues, comments, dependencies, and the full dolt history"
-    if ask_yn "Delete $beads_dir?" N; then
-      run rm -rf "$beads_dir" && ok "removed $beads_dir"
+  # --- 4. agent permissions ----------------------------------------------
+  bold "4/5  agent permissions (Claude Code + Codex)"
+  local agent_home="${AGENT_HOME:-$HOME/.bdx-agent}"
+  local settings_file="$HOME/.claude/settings.json"
+  local claude_provenance_file="$HOME/.claude/bdx-managed-permissions.json"
+  local codex_home="${CODEX_HOME:-$HOME/.codex}"
+  local codex_rules_file="$codex_home/rules/bdx.rules"
+  if ask_yn "Remove bdx-managed Claude and Codex permissions?" Y; then
+    if [ "$DRY" = 1 ]; then
+      info "[dry-run] would remove bdx entries from $settings_file and $codex_rules_file"
     else
-      info "skipped — left intact at $beads_dir"
+      if [ -f "$settings_file" ] && [ -f "$claude_provenance_file" ] && command -v jq >/dev/null 2>&1; then
+        local remove_jq='.permissions.allow = ((.permissions.allow // []) - ($managed[0] // []))'
+        if jq --slurpfile managed "$claude_provenance_file" "$remove_jq" \
+          "$settings_file" > "$settings_file.tmp"; then
+          mv -f "$settings_file.tmp" "$settings_file"
+          rm -f "$claude_provenance_file"
+          ok "removed installer-owned bdx entries from $settings_file"
+        else
+          rm -f "$settings_file.tmp"
+          warn "couldn't update $settings_file — left untouched"
+        fi
+      elif [ -f "$settings_file" ] && [ ! -f "$claude_provenance_file" ]; then
+        info "no Claude permission provenance — preserved existing entries"
+      elif [ -f "$settings_file" ]; then
+        warn "jq not on PATH — left Claude permissions untouched"
+      else
+        rm -f "$claude_provenance_file"
+        info "no Claude settings file"
+      fi
+
+      if [ -f "$codex_rules_file" ]; then
+        local codex_rules_tmp="$codex_rules_file.tmp"
+        awk '
+          $0 == "# BEGIN bdx managed rule" { managed=1; next }
+          managed && $0 == "# END bdx managed rule" { managed=0; next }
+          !managed { lines[++count]=$0 }
+          END {
+            while (count > 0 && lines[count] == "") count--
+            for (i=1; i<=count; i++) print lines[i]
+          }
+        ' "$codex_rules_file" > "$codex_rules_tmp"
+        mv -f "$codex_rules_tmp" "$codex_rules_file"
+        ok "removed bdx managed block from $codex_rules_file"
+      else
+        info "no Codex bdx rules file"
+      fi
     fi
+  else
+    info "skipped — permissions left installed"
   fi
 
   # --- 5. $AGENT_HOME (DESTRUCTIVE) --------------------------------------
   bold "5/5  remove \$AGENT_HOME (plans, contexts, summaries, inbox)"
-  local agent_home="${AGENT_HOME:-$HOME/.bdx-agent}"
   if [ ! -d "$agent_home" ]; then
     info "$agent_home does not exist — nothing to remove"
   else
-    danger "this will permanently delete: $agent_home"
-    danger "contents include all plan/, context/, summary/, inbox/ markdown files"
-    if [ "$agent_home" = "$HOME/Dropbox/Notes/agent" ] || [[ "$agent_home" == *"Dropbox"* ]] || [[ "$agent_home" == *"iCloud"* ]]; then
-      danger "this path looks synced (Dropbox/iCloud) — deletion will propagate to other machines"
-    fi
-    if ask_yn "Delete $agent_home?" N; then
-      run rm -rf "$agent_home" && ok "removed $agent_home"
+    local canonical_agent_home
+    if ! canonical_agent_home=$(bdx_validate_agent_home_delete "$agent_home"); then
+      danger "refusing unsafe AGENT_HOME deletion target: $agent_home"
+      info "choose a dedicated bdx data directory before uninstalling data"
     else
-      info "skipped — left intact at $agent_home"
+      danger "this will permanently delete: $canonical_agent_home"
+      danger "contents include all plan/, context/, summary/, inbox/ markdown files"
+      if [ "$canonical_agent_home" = "$HOME/Dropbox/Notes/agent" ] || [[ "$canonical_agent_home" == *"Dropbox"* ]] || [[ "$canonical_agent_home" == *"iCloud"* ]]; then
+        danger "this path looks synced (Dropbox/iCloud) — deletion will propagate to other machines"
+      fi
+      if ask_yn "Delete $canonical_agent_home?" N; then
+        run rm -rf "$canonical_agent_home" && ok "removed $canonical_agent_home"
+      else
+        info "skipped — left intact at $canonical_agent_home"
+      fi
     fi
   fi
 
   # --- manual cleanup reminder -------------------------------------------
-  bold "manual cleanup (not handled by this script)"
-  info "shell profile: remove the BEADS_DIR / AGENT_HOME exports from your shell rc by hand"
+  bold "manual cleanup"
+  info "shell profile: remove the AGENT_HOME export from your shell rc by hand"
+  info "project .beads databases are intentionally left untouched"
   info "claude plugin: 'claude plugin remove bdx' if you installed it via a marketplace"
   info "launchd agent (macOS): 'launchctl unload ~/Library/LaunchAgents/com.<you>.beads.dolt.plist' + delete the plist if you set one up"
 

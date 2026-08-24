@@ -1,0 +1,179 @@
+#!/usr/bin/env bash
+# Resolve a Bead ID to the repository that owns its per-project Beads database.
+#
+# Resolution order:
+#   1. BDX_PROJECT_DIR (an explicit hint from bdc or another caller)
+#   2. Project tags in the persisted $AGENT_HOME plan
+#   3. The current working directory
+#   4. A bounded scan of project paths in $AGENT_HOME/manifest.md
+#
+# Every candidate is verified with `bd -C <path> show <id> --json`. The script
+# prints one absolute repository path on stdout or fails without changing state.
+
+set -euo pipefail
+
+if [ "$#" -ne 1 ] || [ -z "${1:-}" ]; then
+  echo "usage: bdx-resolve-project <bd-id>" >&2
+  exit 2
+fi
+
+BD_ID="$1"
+case "$BD_ID" in
+  *[!A-Za-z0-9._-]*)
+    echo "bdx-resolve-project: invalid Bead ID: $BD_ID" >&2
+    exit 2
+    ;;
+esac
+
+AGENT_HOME="${AGENT_HOME:-$HOME/.bdx-agent}"
+MANIFEST="${BDX_MANIFEST:-$AGENT_HOME/manifest.md}"
+
+canonical_dir() {
+  local path="$1"
+  case "$path" in
+    '~') path="$HOME" ;;
+    '~/'*) path="$HOME/${path#\~/}" ;;
+  esac
+  [ -d "$path" ] || return 1
+  (CDPATH= cd -- "$path" && pwd -P)
+}
+
+issue_exists() {
+  local path="$1"
+  bd -C "$path" show "$BD_ID" --json >/dev/null 2>&1
+}
+
+manifest_entries() {
+  [ -f "$MANIFEST" ] || return 0
+  awk '
+    function emit() {
+      if (slug != "" && path != "") print slug "\t" path
+    }
+    /^##[[:space:]]+/ {
+      emit()
+      slug=$0
+      sub(/^##[[:space:]]+/, "", slug)
+      path=""
+      next
+    }
+    slug != "" && /^-[[:space:]]+\*\*path\*\*:/ {
+      path=$0
+      sub(/^-[[:space:]]+\*\*path\*\*:[[:space:]]*/, "", path)
+      gsub(/^`|`$/, "", path)
+    }
+    END { emit() }
+  ' "$MANIFEST"
+}
+
+plan_tags() {
+  local plan="$1"
+  awk '
+    NR == 1 && /^---[[:space:]]*$/ { in_frontmatter=1; next }
+    in_frontmatter && /^---[[:space:]]*$/ { exit }
+    !in_frontmatter { exit }
+    /^tags:[[:space:]]*/ {
+      line=$0
+      sub(/^tags:[[:space:]]*/, "", line)
+      gsub(/[\[\],]/, " ", line)
+      n=split(line, parts, /[[:space:]]+/)
+      for (i=1; i<=n; i++) if (parts[i] != "") print parts[i]
+      reading_tags=1
+      next
+    }
+    reading_tags && /^[[:space:]]+-[[:space:]]*/ {
+      line=$0
+      sub(/^[[:space:]]+-[[:space:]]*/, "", line)
+      gsub(/["'\'' ]/, "", line)
+      if (line != "") print line
+      next
+    }
+    reading_tags && /^[^[:space:]]/ { reading_tags=0 }
+  ' "$plan"
+}
+
+add_match() {
+  local path="$1"
+  local existing
+  for existing in "${MATCHES[@]:-}"; do
+    [ "$existing" = "$path" ] && return 0
+  done
+  MATCHES+=("$path")
+}
+
+resolve_matches() {
+  if [ "${#MATCHES[@]}" -eq 1 ]; then
+    printf '%s\n' "${MATCHES[0]}"
+    exit 0
+  fi
+  if [ "${#MATCHES[@]}" -gt 1 ]; then
+    echo "bdx-resolve-project: $BD_ID exists in multiple manifest projects:" >&2
+    printf '  %s\n' "${MATCHES[@]}" >&2
+    echo "Use BDX_PROJECT_DIR=<repo> to select one explicitly." >&2
+    exit 3
+  fi
+}
+
+declare -a MATCHES=()
+
+# An explicit caller hint is authoritative: reject a stale/wrong hint instead
+# of silently mutating a different project with the same issue ID.
+if [ -n "${BDX_PROJECT_DIR:-}" ]; then
+  if project_dir=$(canonical_dir "$BDX_PROJECT_DIR") && issue_exists "$project_dir"; then
+    printf '%s\n' "$project_dir"
+    exit 0
+  fi
+  echo "bdx-resolve-project: $BD_ID not found in BDX_PROJECT_DIR=$BDX_PROJECT_DIR" >&2
+  exit 1
+fi
+
+# Fast path for restored bdx tasks: plans carry the canonical manifest slug in
+# YAML tags (for example `tags: [plan, workflows]`).
+if [ -f "$MANIFEST" ] && [ -d "$AGENT_HOME/plan" ]; then
+  declare -a PLAN_FILES=()
+  while IFS= read -r plan; do PLAN_FILES+=("$plan"); done < <(
+    find "$AGENT_HOME/plan" -maxdepth 1 -type f -name "$BD_ID-*.md" -print
+  )
+
+  if [ "${#PLAN_FILES[@]}" -gt 0 ]; then
+    while IFS=$'\t' read -r slug path; do
+      [ -n "$slug" ] && [ -n "$path" ] || continue
+      tagged=0
+      for plan in "${PLAN_FILES[@]}"; do
+        if plan_tags "$plan" | grep -Fqx -- "$slug"; then
+          tagged=1
+          break
+        fi
+      done
+      [ "$tagged" -eq 1 ] || continue
+      if project_dir=$(canonical_dir "$path") && issue_exists "$project_dir"; then
+        add_match "$project_dir"
+      fi
+    done < <(manifest_entries)
+    resolve_matches
+  fi
+fi
+
+# Preserve the intuitive behavior when invoked inside the owning repository.
+if project_dir=$(canonical_dir "$PWD") && issue_exists "$project_dir"; then
+  printf '%s\n' "$project_dir"
+  exit 0
+fi
+
+# Recovery path for old or missing plans. This is intentionally bounded to
+# explicit manifest entries; bdx never crawls the filesystem looking for DBs.
+if [ ! -f "$MANIFEST" ]; then
+  echo "bdx-resolve-project: no manifest at $MANIFEST" >&2
+  exit 1
+fi
+
+MATCHES=()
+while IFS=$'\t' read -r _slug path; do
+  [ -n "$path" ] || continue
+  if project_dir=$(canonical_dir "$path") && issue_exists "$project_dir"; then
+    add_match "$project_dir"
+  fi
+done < <(manifest_entries)
+
+resolve_matches
+echo "bdx-resolve-project: $BD_ID was not found in any manifest project" >&2
+exit 1

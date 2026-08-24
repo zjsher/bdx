@@ -1,0 +1,189 @@
+#!/usr/bin/env bash
+# Deterministically update the live plan's top-level status and sessions fields.
+# Beads is authoritative; this script only maintains a local Markdown projection.
+
+set -euo pipefail
+
+usage() {
+  echo "usage: bdx-plan-frontmatter <bd-id> [--status <status>] [--session <identity>]" >&2
+  exit 2
+}
+
+[ "$#" -ge 3 ] || usage
+BD_ID="$1"
+shift
+
+case "$BD_ID" in
+  *[!A-Za-z0-9._-]*) echo "bdx-plan-frontmatter: invalid Bead ID: $BD_ID" >&2; exit 2 ;;
+esac
+
+STATUS=""
+SESSION=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --status)
+      [ "$#" -ge 2 ] || usage
+      STATUS="$2"
+      shift 2
+      ;;
+    --session)
+      [ "$#" -ge 2 ] || usage
+      SESSION="$2"
+      shift 2
+      ;;
+    *) usage ;;
+  esac
+done
+
+[ -n "$STATUS" ] || [ -n "$SESSION" ] || usage
+if [ -n "$STATUS" ]; then
+  case "$STATUS" in
+    open|in_progress|blocked|deferred|closed) ;;
+    *) echo "bdx-plan-frontmatter: unsupported status: $STATUS" >&2; exit 2 ;;
+  esac
+fi
+if [ -n "$SESSION" ]; then
+  case "$SESSION" in
+    *[!A-Za-z0-9._:@/-]*)
+      echo "bdx-plan-frontmatter: invalid session identity: $SESSION" >&2
+      exit 2
+      ;;
+  esac
+fi
+
+AGENT_HOME="${AGENT_HOME:-$HOME/.bdx-agent}"
+PLAN_DIR="$AGENT_HOME/plan"
+[ -d "$PLAN_DIR" ] || { echo "bdx-plan-frontmatter: no plan directory at $PLAN_DIR" >&2; exit 1; }
+
+declare -a PLANS=()
+while IFS= read -r plan; do PLANS+=("$plan"); done < <(
+  find "$PLAN_DIR" -maxdepth 1 -type f -name "$BD_ID-*.md" -print
+)
+if [ "${#PLANS[@]}" -eq 0 ]; then
+  echo "bdx-plan-frontmatter: no plan found for $BD_ID" >&2
+  exit 1
+fi
+if [ "${#PLANS[@]}" -gt 1 ]; then
+  echo "bdx-plan-frontmatter: multiple plans found for $BD_ID:" >&2
+  printf '  %s\n' "${PLANS[@]}" >&2
+  exit 3
+fi
+PLAN="${PLANS[0]}"
+
+# mkdir is the portable atomic lock available on macOS and Linux. A bounded
+# wait fails safely instead of risking a lost update. The owner PID makes a
+# stale lock diagnosable without guessing whether another writer is active.
+LOCK_DIR="$PLAN.bdx-lock"
+acquired=0
+for _attempt in $(seq 1 100); do
+  if mkdir "$LOCK_DIR" 2>/dev/null; then
+    acquired=1
+    printf '%s\n' "$$" > "$LOCK_DIR/pid"
+    break
+  fi
+  sleep 0.05
+done
+if [ "$acquired" -ne 1 ]; then
+  owner="unknown"
+  [ -f "$LOCK_DIR/pid" ] && owner=$(sed -n '1p' "$LOCK_DIR/pid")
+  echo "bdx-plan-frontmatter: timed out waiting for plan lock (owner pid: $owner): $LOCK_DIR" >&2
+  exit 1
+fi
+
+TMP=""
+cleanup() {
+  [ -z "$TMP" ] || rm -f -- "$TMP"
+  rm -f -- "$LOCK_DIR/pid"
+  rmdir -- "$LOCK_DIR" 2>/dev/null || true
+}
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+TMP=$(mktemp "${PLAN}.tmp.XXXXXX")
+if ! awk -v wanted_status="$STATUS" -v wanted_session="$SESSION" '
+  function emit_missing_fields() {
+    if (wanted_status != "" && !saw_status) print "status: " wanted_status
+    if (wanted_session != "" && !saw_sessions) {
+      print "sessions:"
+      print "  - \"" wanted_session "\""
+      session_present=1
+    }
+  }
+  NR == 1 {
+    if ($0 !~ /^---[[:space:]]*$/) exit 20
+    in_frontmatter=1
+    print
+    next
+  }
+  in_frontmatter && /^---[[:space:]]*$/ {
+    if (in_sessions && wanted_session != "" && !session_present)
+      print "  - \"" wanted_session "\""
+    emit_missing_fields()
+    in_frontmatter=0
+    in_sessions=0
+    closed_frontmatter=1
+    print
+    next
+  }
+  in_frontmatter && /^status:[[:space:]]*/ {
+    status_count++
+    if (status_count > 1) exit 21
+    saw_status=1
+    if (wanted_status != "") print "status: " wanted_status
+    else print
+    next
+  }
+  in_frontmatter && /^sessions:[[:space:]]*$/ {
+    sessions_count++
+    if (sessions_count > 1) exit 23
+    saw_sessions=1
+    in_sessions=1
+    print
+    next
+  }
+  in_frontmatter && /^sessions:[[:space:]]*\[[[:space:]]*\][[:space:]]*$/ {
+    sessions_count++
+    if (sessions_count > 1) exit 23
+    saw_sessions=1
+    if (wanted_session != "") {
+      in_sessions=1
+      print "sessions:"
+    } else {
+      in_sessions=0
+      print
+    }
+    next
+  }
+  in_frontmatter && /^sessions:/ { exit 24 }
+  in_sessions && /^[[:space:]]+-/ {
+    session_value=$0
+    sub(/^[[:space:]]*-[[:space:]]*/, "", session_value)
+    sub(/[[:space:]]+$/, "", session_value)
+    if (session_value ~ /^".*"$/ || session_value ~ /^\047.*\047$/)
+      session_value=substr(session_value, 2, length(session_value)-2)
+    if (wanted_session != "" && session_value == wanted_session) session_present=1
+    print
+    next
+  }
+  in_sessions && /^[^[:space:]-]/ {
+    if (wanted_session != "" && !session_present)
+      print "  - \"" wanted_session "\""
+    in_sessions=0
+    print
+    next
+  }
+  { print }
+  END {
+    if (!closed_frontmatter) exit 22
+  }
+' "$PLAN" > "$TMP"; then
+  echo "bdx-plan-frontmatter: malformed or unsupported frontmatter in $PLAN" >&2
+  exit 1
+fi
+
+chmod --reference="$PLAN" "$TMP" 2>/dev/null || chmod "$(stat -f '%Lp' "$PLAN" 2>/dev/null || stat -c '%a' "$PLAN")" "$TMP"
+mv -f -- "$TMP" "$PLAN"
+TMP=""
+printf '%s\n' "$PLAN"

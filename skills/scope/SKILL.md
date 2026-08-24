@@ -63,7 +63,7 @@ Identical to `plan`. Key seeding differences when scoping an existing bd:
 - **Goal**: extract from the bd's title + description. Reword to 1–2 sentences if the description was a single-liner.
 - **Context**: lead with "Originally captured as `bd-xxx` on `<created-date>`." then preserve the bd's original description body. Link any external refs found in the description.
 - **Plan**: if the bd's description lists concrete steps, convert to checkboxes. Otherwise leave `Phase 1 — TBD` with a single checkbox asking the next session to flesh it out.
-- **Frontmatter**: `kind: agent-note`, `status: draft`, `tags: [plan, <project>]`, the harness-qualified bdx session identity as a quoted `sessions:` entry (or `[]`), and `parent: <resolved-from-bd-dep-list-or-empty>`. Seed `rank:` (0-99) from the bd's existing priority captured in step 2 — p0→10, p1→30, p2→50, p3→70. If priority is unset, default rank to 50.
+- **Frontmatter**: `kind: agent-note`, `status: <verified-current-bd-status>` (a cached projection, never an independent state), `tags: [plan, <project>]`, the harness-qualified bdx session identity as a quoted `sessions:` entry (or `[]`), and `parent: <resolved-from-bd-dep-list-or-empty>`. Seed `rank:` (0-99) from the bd's existing priority captured in step 2 — p0→10, p1→30, p2→50, p3→70. If priority is unset, default rank to 50.
 
 ## Rules
 

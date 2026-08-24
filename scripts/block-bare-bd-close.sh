@@ -18,7 +18,9 @@ TOOL=$(printf '%s' "$INPUT" | jq -r '.tool_name // empty')
 CMD=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty')
 
 # Skip help invocations
-if printf '%s' "$CMD" | grep -Eq '\bbd[[:space:]]+close\b[[:space:]]+(-h\b|--help\b)'; then
+BD_PREFIX="bd([[:space:]]+-C[[:space:]]+(\"[^\"]*\"|'[^']*'|[^[:space:]]+))?"
+
+if printf '%s' "$CMD" | grep -Eq "\\b${BD_PREFIX}[[:space:]]+close\\b[[:space:]]+(-h\\b|--help\\b)"; then
   exit 0
 fi
 
@@ -35,8 +37,8 @@ fi
 # separator. A plain space is deliberately NOT a boundary — otherwise
 # `git commit -m "block bd close"` trips the guard.
 BOUNDARY='(^|[;&|(])[[:space:]]*'
-if printf '%s' "$CMD" | grep -Eq "${BOUNDARY}bd[[:space:]]+close\b" \
-  || printf '%s' "$CMD" | grep -Eq "${BOUNDARY}bd[[:space:]]+update\b.*--status[[:space:]=]+closed\b"; then
+if printf '%s' "$CMD" | grep -Eq "${BOUNDARY}${BD_PREFIX}[[:space:]]+close\b" \
+  || printf '%s' "$CMD" | grep -Eq "${BOUNDARY}${BD_PREFIX}[[:space:]]+update\b.*--status[[:space:]=]+closed\b"; then
   cat >&2 <<'EOF'
 Blocked: do not call `bd close` directly.
 

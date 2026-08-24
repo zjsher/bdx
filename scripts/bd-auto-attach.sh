@@ -3,12 +3,13 @@
 # session to that beads task without running the /bdx:attach skill manually.
 #
 # Actions:
-#   1. Verify the bd issue exists
-#   2. If status is `open`, flip to `in_progress`
-#   3. Append this harness-qualified session identity to the plan file's
+#   1. Resolve the issue's per-project Beads repository
+#   2. Verify the bd issue exists
+#   3. If status is `open`, flip to `in_progress`
+#   4. Append this harness-qualified session identity to the plan file's
 #      `sessions:` frontmatter
 #      (idempotent — no-op if already present)
-#   4. Emit a briefing (plan + latest context + latest summary + recent
+#   5. Emit a briefing (plan + latest context + latest summary + recent
 #      comments) as `additionalContext` so the agent starts pre-loaded
 #
 # Opt in by launching as:
@@ -35,9 +36,16 @@ BD_ID="${BD_ID:-}"
 
 AGENT_HOME="${AGENT_HOME:-$HOME/.bdx-agent}"
 
+# Resolve before touching Beads. This lets BD_ID sessions launch from anywhere
+# while each project keeps its own native database.
+if ! PROJECT_DIR=$("$SCRIPT_DIR/bdx-resolve-project" "$BD_ID"); then
+  echo "bd-auto-attach: could not resolve project for $BD_ID; skipping" >&2
+  exit 1
+fi
+
 # Verify bd issue + capture JSON (bd exits non-zero + emits {"error": ...} if missing)
-if ! ISSUE_JSON=$(bd show "$BD_ID" --json 2>/dev/null); then
-  echo "bd-auto-attach: $BD_ID not found; skipping" >&2
+if ! ISSUE_JSON=$(bd -C "$PROJECT_DIR" show "$BD_ID" --json 2>/dev/null); then
+  echo "bd-auto-attach: $BD_ID not found in $PROJECT_DIR; skipping" >&2
   exit 1
 fi
 if [ "$(printf '%s' "$ISSUE_JSON" | jq -r 'type')" != "array" ] || \
@@ -48,41 +56,44 @@ fi
 
 STATUS=$(printf '%s' "$ISSUE_JSON" | jq -r '.[0].status // empty')
 TITLE=$(printf '%s' "$ISSUE_JSON" | jq -r '.[0].title // empty')
+STATUS_MESSAGE="Status is **$STATUS**."
+
+# Preflight the one required live plan before changing authoritative Beads
+# state. The same locked writer validates frontmatter and records this session
+# against the status we actually read.
+declare -a PLANS=()
+while IFS= read -r plan; do PLANS+=("$plan"); done < <(
+  find "$AGENT_HOME/plan" -maxdepth 1 -type f -name "$BD_ID-*.md" -print 2>/dev/null
+)
+if [ "${#PLANS[@]}" -eq 0 ]; then
+  echo "bd-auto-attach: no plan found for $BD_ID; run /bdx:scope first" >&2
+  exit 1
+elif [ "${#PLANS[@]}" -gt 1 ]; then
+  echo "bd-auto-attach: multiple plans found for $BD_ID" >&2
+  printf '  %s\n' "${PLANS[@]}" >&2
+  exit 1
+fi
+PLAN="${PLANS[0]}"
+FRONTMATTER_ARGS=("$BD_ID" --status "$STATUS")
+[ -z "$BDX_SESSION_ID" ] || FRONTMATTER_ARGS+=(--session "$BDX_SESSION_ID")
+if ! "$SCRIPT_DIR/bdx-plan-frontmatter" "${FRONTMATTER_ARGS[@]}" >/dev/null; then
+  echo "bd-auto-attach: failed to validate/update plan frontmatter for $BD_ID" >&2
+  exit 1
+fi
 
 # Flip open → in_progress
 if [ "$STATUS" = "open" ]; then
-  bd update "$BD_ID" --status in_progress >/dev/null 2>&1 || true
-fi
-
-# Locate plan (1 per task by convention)
-PLAN=$(ls "$AGENT_HOME"/plan/"$BD_ID"-*.md 2>/dev/null | head -1)
-
-# Append the harness-qualified session identity to plan frontmatter
-# (idempotent).
-# POSIX awk — no python or yq dependency. Handles four cases:
-#   - sessions: with existing entries → append new uuid if not present
-#   - sessions: with new uuid already there → no-op (idempotent)
-#   - sessions: [] inline empty list → convert to multi-line + append
-#   - no sessions: key in frontmatter → inject the block before closing ---
-# Files without YAML frontmatter pass through unchanged.
-if [ -n "$PLAN" ] && [ -n "$BDX_SESSION_ID" ]; then
-  awk -v sid="$BDX_SESSION_ID" '
-  BEGIN { in_fm=0; in_sessions=0; saw_sessions=0; sid_present=0 }
-  NR==1 && /^---[[:space:]]*$/ { in_fm=1; print; next }
-  in_fm && /^---[[:space:]]*$/ {
-    if (in_sessions && !sid_present) print "  - \"" sid "\""
-    if (!saw_sessions) { print "sessions:"; print "  - \"" sid "\"" }
-    in_fm=0; in_sessions=0; print; next
-  }
-  in_fm && /^sessions:[[:space:]]*$/ { saw_sessions=1; in_sessions=1; print; next }
-  in_fm && /^sessions:[[:space:]]*\[\][[:space:]]*$/ { saw_sessions=1; print "sessions:"; in_sessions=1; next }
-  in_sessions && /^[[:space:]]+-/ { if (index($0, sid) > 0) sid_present=1; print; next }
-  in_sessions && /^[^[:space:]-]/ {
-    if (!sid_present) print "  - \"" sid "\""
-    in_sessions=0; print; next
-  }
-  { print }
-  ' "$PLAN" > "$PLAN.tmp" && mv "$PLAN.tmp" "$PLAN" || rm -f "$PLAN.tmp"
+  if ! UPDATE_OUTPUT=$(bd -C "$PROJECT_DIR" update "$BD_ID" --status in_progress 2>&1); then
+    echo "bd-auto-attach: failed to update $BD_ID to in_progress:" >&2
+    printf '%s\n' "$UPDATE_OUTPUT" | sed 's/^/  /' >&2
+    exit 1
+  fi
+  STATUS_MESSAGE="Status changed **open → in_progress**."
+  STATUS="in_progress"
+  if ! "$SCRIPT_DIR/bdx-plan-frontmatter" "$BD_ID" --status "$STATUS" >/dev/null; then
+    echo "bd-auto-attach: Beads is in_progress but plan projection failed; repair with bdx-sync-status $BD_ID" >&2
+    exit 1
+  fi
 fi
 
 # Pick latest context + summary for this bd-id
@@ -101,8 +112,13 @@ CTX=$(mktemp)
 {
   echo "# Auto-attached to $BD_ID — ${TITLE:-(no title)}"
   echo
-  echo "Status flipped to **in_progress** (was $STATUS)."
-  echo "Session identity appended to plan \`sessions:\` list: \`$BDX_SESSION_ID\`."
+  echo "Project: \`$PROJECT_DIR\`"
+  echo "$STATUS_MESSAGE"
+  if [ -n "$BDX_SESSION_ID" ]; then
+    echo "Session identity recorded in plan \`sessions:\`: \`$BDX_SESSION_ID\`."
+  else
+    echo "No harness session identity was available to record."
+  fi
   echo
   if [ -n "$PLAN" ]; then
     echo "## Plan — $PLAN"
@@ -131,7 +147,7 @@ CTX=$(mktemp)
     echo '```'
     echo
   fi
-  COMMENTS=$(bd comments "$BD_ID" 2>/dev/null | tail -80)
+  COMMENTS=$(bd -C "$PROJECT_DIR" comments "$BD_ID" 2>/dev/null | tail -80)
   if [ -n "$COMMENTS" ] && [ "$COMMENTS" != "No comments on $BD_ID" ]; then
     echo "## Recent bd comments"
     echo

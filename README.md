@@ -12,7 +12,9 @@ This is my current ideal agent coding workflow, and it has served me well.
 
 ## Quickstart
 
-Bootstraps `bd`, `dolt`, `BEADS_DIR`, and `AGENT_HOME` in one shot. Safe to re-run.
+Bootstraps `bd`, `dolt`, and `AGENT_HOME` in one shot. Beads databases remain
+per-project; initialize each repository with `bd init` rather than exporting a
+global `BEADS_DIR`. Safe to re-run.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/zeejers/bdx/refs/heads/development/scripts/install.sh | bash
@@ -40,7 +42,7 @@ plan → attach → build-loop → close
 
 **1. Plan.** Chat with the agent about what you want to build, then `/bdx:plan` to plan from the discussion (or `/bdx:plan "feature in one line"`). You get back a beads issue (e.g. `bd-abc`) plus a plan file at `$AGENT_HOME/plan/bd-abc-<slug>.md`.
 
-**2. Attach.** From any supported agent session, `/bdx:attach bd-abc`. The session loads the plan, every prior context dump, and the latest summary into turn-1 context - the agent picks up with full history.
+**2. Attach.** From any supported agent session, `/bdx:attach bd-abc`. bdx resolves the owning repository from the plan + manifest, asks native Beads in that repository, then loads the plan, every prior context dump, and the latest summary into turn-1 context - the agent picks up with full history.
 
 > From a fresh terminal, `bdc bd-abc` launches `claude` with the task already attached.
 
@@ -49,6 +51,12 @@ plan → attach → build-loop → close
 **4. Track or hand off.** Peek at the plan anytime to see what's done. `/bdx:check bd-abc "<step>"` is the cheap manual progress primitive. Learned something mid-flight? `bdx-note "the retry loop leaks a socket on 429"` appends one timestamped line to the plan's `## Log` — one command, no skill load, and it works for humans in the same terminal. About to log out mid-goal? `/bdx:dump` snapshots head-state to `$AGENT_HOME/context/`; the next `/bdx:attach` pulls it back in.
 
 **5. Close.** Finish the work, then `/bdx:close bd-abc` writes a summary to `$AGENT_HOME/summary/`, attributes decisions to agent vs user, and closes the bd issue with a one-line resolution. The plugin's `PreToolUse` hook blocks bare `bd close` so you can't accidentally skip the writeup.
+
+The live plan's `status:` is a cache of Beads, not a second state machine.
+`plan`, `attach`, `dump`, and `close` keep it current through locked, atomic
+frontmatter tools. If another client changes the Bead—for example, a teammate
+closes it—run `bdx-sync-status bd-abc` to refresh the plan. Context dumps and
+summaries are historical snapshots and are never rewritten.
 
 ## Implementing features
 
@@ -111,6 +119,20 @@ $AGENT_HOME/
 
 Override by exporting `AGENT_HOME` before launching your agent harness - e.g. `export AGENT_HOME="$HOME/Dropbox/Notes/agent"` to sync plans across machines.
 
+### Per-project Beads routing
+
+Each repository owns its native `.beads` database and any external integration
+configuration. `$AGENT_HOME/manifest.md` is only bdx's cross-project routing
+index: a project slug maps to its repository path. Plans already carry that
+slug in `tags`, so `attach`, automatic attach, and `bdc` normally resolve the
+repository without scanning. Old tasks without a plan fall back to checking
+the explicit manifest paths and fail safely if an ID is missing or ambiguous.
+
+From a shell, the equivalent native operation is `bd -C <repo> <command>`. Do
+not export `BEADS_DIR` for this setup; it is unnecessary and makes ownership
+harder to reason about. Use distinct issue prefixes per project when practical,
+even though the resolver also rejects duplicate IDs across manifest projects.
+
 ## Permissions
 
 Every `/bdx:*` skill fires `bd` subcommands and writes to `$AGENT_HOME/`. The Quickstart installer configures both Claude Code and Codex automatically.
@@ -122,6 +144,9 @@ For Claude Code, the installer merges this into `~/.claude/settings.json`:
   "permissions": {
     "allow": [
       "Bash(bd:*)",
+      "Bash(bdx-resolve-project:*)",
+      "Bash(bdx-plan-frontmatter:*)",
+      "Bash(bdx-sync-status:*)",
       "Read(~/.bdx-agent/**)",
       "Write(~/.bdx-agent/**)",
       "Edit(~/.bdx-agent/**)"
@@ -141,6 +166,24 @@ prefix_rule(
     justification = "bdx skills use Beads task tracking and its configured Dolt store",
     match = ["bd ready", "bd show bd-123", "bd dolt push"],
     not_match = ["bdx ready"],
+)
+
+prefix_rule(
+    pattern = ["bdx-resolve-project"],
+    decision = "allow",
+    justification = "bdx resolves a Bead to its owning per-project database",
+)
+
+prefix_rule(
+    pattern = ["bdx-plan-frontmatter"],
+    decision = "allow",
+    justification = "bdx atomically updates managed live-plan frontmatter",
+)
+
+prefix_rule(
+    pattern = ["bdx-sync-status"],
+    decision = "allow",
+    justification = "bdx projects authoritative Beads status into live plan frontmatter",
 )
 ```
 
@@ -178,7 +221,7 @@ The plan stays close to its original shape - it's the prompt, and the diff `plan
 - **`SessionStart`** → `capture-session-id.sh` records a harness-qualified identity such as `"claude-code:<uuid>"` or `"codex:<uuid>"` for `sessions:` frontmatter. It exports `$BDX_SESSION_ID` when the host supports persistent hook environment updates and otherwise injects the value into session context. Set `BDX_HARNESS=<slug>` to identify another hook-compatible host; undetected hosts use `"unknown:<id>"`.
 - Resume a recorded session by splitting the prefix from the id: `claude --resume <id>` for `claude-code:` or `codex resume <id>` for `codex:`.
 - **`SessionStart`** → `bdx-ensure-agent-home.sh` resolves `$AGENT_HOME`, auto-creates the subdir layout, exports the value, and puts the plugin's `scripts/` on `$PATH` so `bdx-note` and `bdc` are callable by name.
-- **`SessionStart:startup`** → `bd-auto-attach.sh` if `$BD_ID` is set, auto-loads plan/context/summary, appends the harness-qualified session identity to `sessions:`, flips bd status `open → in_progress`, and emits the bundle as `additionalContext` on turn 1.
+- **`SessionStart:startup`** → `bd-auto-attach.sh` if `$BD_ID` is set, resolves the owning repository, auto-loads plan/context/summary, atomically records the harness-qualified session identity and current Beads status in plan frontmatter, flips bd status `open → in_progress`, and emits the bundle as `additionalContext` on turn 1.
 - **`PreToolUse:Bash`** → `block-bare-bd-close.sh` blocks direct `bd close` so you're forced through `/bdx:close`.
 - **`PreToolUse:Bash`** → `block-bd-narrative-writes.sh` blocks `bd note`, `bd edit`, and `--notes` / `--append-notes` / `--design` / `--design-file` / `--context` / `--acceptance` on `bd create|update`, and prints the exact `bdx-note` command to run instead.
 
@@ -198,9 +241,23 @@ Three things it deliberately leaves alone:
 
 It exists so the block above has somewhere equally cheap to point: if the sanctioned path costs more than `bd note` did, agents just reach for the escape hatch.
 
+### Live frontmatter projection
+
+`bdx-plan-frontmatter <bd-id> --status <state> [--session <identity>]` is the
+single writer for the live plan's top-level `status:` and `sessions:` fields.
+It locks per plan, writes through a same-directory temporary file, preserves
+all other frontmatter and body content, and rejects missing or duplicate plans.
+Lifecycle skills call it; agents should not patch those fields by hand.
+
+`bdx-sync-status <bd-id>` resolves the owning project, reads the authoritative
+Bead, and invokes that writer. Use it after a status change made outside bdx.
+This is deliberately one-way: changing Markdown never changes Beads.
+
 ### Launcher
 
-`scripts/bdc <bd-id>` sets `BD_ID`, derives a slug from the bd title, and runs `claude -n "<bd-id>-<slug>"`. Symlink to `~/bin/bdc` or alias it.
+`scripts/bdc <bd-id>` resolves the owning manifest repository, changes into it,
+sets `BD_ID` + `BDX_PROJECT_DIR`, derives a slug from the bd title, and runs
+`claude -n "<bd-id>-<slug>"`. Symlink to `~/bin/bdc` or alias it.
 
 ### Local plugin dev
 
