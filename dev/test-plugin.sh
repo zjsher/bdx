@@ -57,6 +57,7 @@ for required in \
   scripts/bd-auto-attach.sh \
   scripts/bdx-resolve-project \
   scripts/bdx-plan-frontmatter \
+  scripts/bdx-plan-orchestration \
   scripts/bdx-sync-status \
   scripts/bdx-validate-agent-home-delete \
   scripts/bdx-ensure-agent-home.sh \

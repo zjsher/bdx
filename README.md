@@ -40,7 +40,7 @@ Default feature path:
 plan → attach → build-loop → close
 ```
 
-**1. Plan.** Chat with the agent about what you want to build, then `/bdx:plan` to plan from the discussion (or `/bdx:plan "feature in one line"`). You get back a beads issue (e.g. `bd-abc`) plus a plan file at `$AGENT_HOME/plan/bd-abc-<slug>.md`.
+**1. Plan.** Chat with the agent about what you want to build, then `/bdx:plan` to plan from the discussion (or `/bdx:plan "feature in one line"`). You get back a beads issue (e.g. `bd-abc`) plus a plan file at `$AGENT_HOME/plan/bd-abc-<slug>.md`. The plan includes a validated orchestration manifest—phases, dependencies, runners, gates, checks, and finish hooks—rendered deterministically from the agent's semantic spec.
 
 **2. Attach.** From any supported agent session, `/bdx:attach bd-abc`. bdx resolves the owning repository from the plan + manifest, asks native Beads in that repository, then loads the plan, every prior context dump, and the latest summary into turn-1 context - the agent picks up with full history.
 
@@ -146,6 +146,7 @@ For Claude Code, the installer merges this into `~/.claude/settings.json`:
       "Bash(bd:*)",
       "Bash(bdx-resolve-project:*)",
       "Bash(bdx-plan-frontmatter:*)",
+      "Bash(bdx-plan-orchestration:*)",
       "Bash(bdx-sync-status:*)",
       "Read(~/.bdx-agent/**)",
       "Write(~/.bdx-agent/**)",
@@ -178,6 +179,12 @@ prefix_rule(
     pattern = ["bdx-plan-frontmatter"],
     decision = "allow",
     justification = "bdx atomically updates managed live-plan frontmatter",
+)
+
+prefix_rule(
+    pattern = ["bdx-plan-orchestration"],
+    decision = "allow",
+    justification = "bdx validates and atomically writes generated plan orchestration",
 )
 
 prefix_rule(
@@ -220,7 +227,7 @@ The plan stays close to its original shape - it's the prompt, and the diff `plan
 
 - **`SessionStart`** → `capture-session-id.sh` records a harness-qualified identity such as `"claude-code:<uuid>"` or `"codex:<uuid>"` for `sessions:` frontmatter. It exports `$BDX_SESSION_ID` when the host supports persistent hook environment updates and otherwise injects the value into session context. Set `BDX_HARNESS=<slug>` to identify another hook-compatible host; undetected hosts use `"unknown:<id>"`.
 - Resume a recorded session by splitting the prefix from the id: `claude --resume <id>` for `claude-code:` or `codex resume <id>` for `codex:`.
-- **`SessionStart`** → `bdx-ensure-agent-home.sh` resolves `$AGENT_HOME`, auto-creates the subdir layout, exports the value, and puts the plugin's `scripts/` on `$PATH` so `bdx-note` and `bdc` are callable by name.
+- **`SessionStart`** → `bdx-ensure-agent-home.sh` resolves `$AGENT_HOME`, auto-creates the subdir layout, exports the value, and puts the plugin's `scripts/` on `$PATH` so commands such as `bdx-note`, `bdc`, and `bdx-plan-orchestration` are callable by name.
 - **`SessionStart:startup`** → `bd-auto-attach.sh` if `$BD_ID` is set, resolves the owning repository, auto-loads plan/context/summary, atomically records the harness-qualified session identity and current Beads status in plan frontmatter, flips bd status `open → in_progress`, and emits the bundle as `additionalContext` on turn 1.
 - **`PreToolUse:Bash`** → `block-bare-bd-close.sh` blocks direct `bd close` so you're forced through `/bdx:close`.
 - **`PreToolUse:Bash`** → `block-bd-narrative-writes.sh` blocks `bd note`, `bd edit`, and `--notes` / `--append-notes` / `--design` / `--design-file` / `--context` / `--acceptance` on `bd create|update`, and prints the exact `bdx-note` command to run instead.
@@ -252,6 +259,17 @@ Lifecycle skills call it; agents should not patch those fields by hand.
 `bdx-sync-status <bd-id>` resolves the owning project, reads the authoritative
 Bead, and invokes that writer. Use it after a status change made outside bdx.
 This is deliberately one-way: changing Markdown never changes Beads.
+
+### Plan orchestration manifests
+
+`bdx-plan-orchestration render --spec <spec.json>` validates a semantic plan
+spec and prints the canonical `## Orchestration` Markdown/YAML block.
+`bdx-plan-orchestration apply --plan <plan.md> --spec <spec.json>` locks the
+plan and atomically inserts or replaces that block while preserving frontmatter
+and unrelated prose. The generator rejects unknown fields, malformed runners,
+duplicate or missing dependencies, cycles, empty completion contracts, and
+unsafe close ordering. Runtime attempts, evidence, approvals, and status remain
+in their canonical stores instead of being written back into the manifest.
 
 ### Launcher
 

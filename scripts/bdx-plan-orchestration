@@ -1,0 +1,343 @@
+#!/usr/bin/env bash
+# Render and atomically apply a validated BDX orchestration manifest.
+
+set -euo pipefail
+
+usage() {
+  cat >&2 <<'EOF'
+usage:
+  bdx-plan-orchestration render --spec <spec.json>
+  bdx-plan-orchestration apply --plan <plan.md> --spec <spec.json>
+
+The JSON spec supplies orchestration semantics. The command validates the v1
+graph and runner contracts, then emits or applies one canonical Markdown/YAML
+section. `apply` replaces an existing `## Orchestration` section atomically.
+EOF
+  exit 2
+}
+
+die() {
+  printf 'bdx-plan-orchestration: %s\n' "$*" >&2
+  exit 1
+}
+
+[ "$#" -ge 1 ] || usage
+MODE="$1"
+shift
+
+SPEC=""
+PLAN=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --spec)
+      [ "$#" -ge 2 ] || usage
+      SPEC="$2"
+      shift 2
+      ;;
+    --plan)
+      [ "$#" -ge 2 ] || usage
+      PLAN="$2"
+      shift 2
+      ;;
+    -h|--help) usage ;;
+    *) usage ;;
+  esac
+done
+
+case "$MODE" in
+  render) [ -n "$SPEC" ] && [ -z "$PLAN" ] || usage ;;
+  apply) [ -n "$SPEC" ] && [ -n "$PLAN" ] || usage ;;
+  *) usage ;;
+esac
+
+command -v jq >/dev/null 2>&1 || die "jq is required"
+[ -f "$SPEC" ] || die "spec not found: $SPEC"
+if [ "$MODE" = apply ]; then
+  [ -f "$PLAN" ] || die "plan not found: $PLAN"
+  [ "$(sed -n '1p' "$PLAN")" = "---" ] || die "plan must start with YAML frontmatter: $PLAN"
+fi
+
+render_manifest() {
+  jq -er '
+    def allowed($names):
+      type == "object" and ((keys_unsorted - $names) | length == 0);
+    def nonempty_string:
+      type == "string" and length > 0;
+    def string_list:
+      type == "array" and all(.[]; nonempty_string);
+    def with_map:
+      type == "object";
+    def skill_name:
+      nonempty_string and test("^[A-Za-z0-9][A-Za-z0-9._:-]*$");
+    def skill_ref:
+      allowed(["skill", "version", "with"])
+      and (.skill | skill_name)
+      and ((.version // "") | type == "string")
+      and ((.with // {}) | with_map);
+    def runner:
+      allowed(["kind", "skill", "version", "agent", "prompt", "with"])
+      and (
+        if .kind == "skill" then
+          (.skill | skill_name)
+          and ((.version // "") | type == "string")
+          and ((.with // {}) | with_map)
+          and ((has("agent") or has("prompt")) | not)
+        elif .kind == "agent" then
+          (.agent | nonempty_string)
+          and (.prompt | nonempty_string)
+          and ((.with // {}) | with_map)
+          and ((has("skill") or has("version")) | not)
+        else false
+        end
+      );
+    def check_contract:
+      allowed(["run", "timeout"])
+      and (.run | nonempty_string)
+      and ((.timeout // "") | type == "string");
+    def entry_contract:
+      allowed(["acceptance"])
+      and (.acceptance | string_list)
+      and (.acceptance | length > 0);
+    def completion_contract:
+      allowed(["acceptance", "checks", "approval"])
+      and ((.acceptance // []) | string_list)
+      and ((.checks // []) | type == "array" and all(.[]; check_contract))
+      and ((.approval // "none") | . == "none" or . == "human")
+      and (
+        ((.acceptance // []) | length > 0)
+        or ((.checks // []) | length > 0)
+        or ((.approval // "none") == "human")
+      );
+    def failure_contract:
+      allowed(["attempts", "then"])
+      and (.attempts | type == "number" and floor == . and . >= 1)
+      and (.then == "halt");
+    def phase_contract:
+      allowed(["id", "title", "needs", "prepare", "run", "entry", "completion", "failure"])
+      and (.id | nonempty_string and test("^[a-z][a-z0-9-]*$"))
+      and (.title | nonempty_string)
+      and ((.needs // []) | string_list)
+      and ((.prepare // []) | type == "array" and all(.[]; skill_ref))
+      and (.run | runner)
+      and ((has("entry") | not) or (.entry | entry_contract))
+      and (.completion | completion_contract)
+      and ((has("failure") | not) or (.failure | failure_contract));
+    def finish_contract:
+      allowed(["on_success", "on_failure"])
+      and ((.on_success // []) | type == "array" and all(.[]; skill_ref))
+      and ((.on_failure // []) | type == "array" and all(.[]; skill_ref));
+    def acyclic($nodes):
+      if ($nodes | length) == 0 then true
+      else
+        ($nodes | map(.id)) as $remaining_ids
+        | ($nodes | map(
+            select((.needs // []) as $needs
+              | all($needs[]; . as $need | ($remaining_ids | index($need)) == null))
+          )) as $ready
+        | if ($ready | length) == 0 then false
+          else
+            ($ready | map(.id)) as $ready_ids
+            | acyclic($nodes | map(.id as $id | select(($ready_ids | index($id)) == null)))
+          end
+      end;
+    def scalar:
+      type == "string" or type == "number" or type == "boolean" or . == null;
+    def yaml_scalar:
+      if type == "string" then tojson
+      elif . == null then "null"
+      else tostring
+      end;
+    def yaml_key:
+      if test("^[A-Za-z_][A-Za-z0-9_.-]*$") then . else tojson end;
+    def yaml($indent):
+      if type == "object" then
+        to_entries
+        | map(
+            (" " * $indent) + (.key | yaml_key)
+            + (if (.value | scalar) then ": " + (.value | yaml_scalar)
+               elif (.value | type == "array" and length == 0) then ": []"
+               elif (.value | type == "object" and length == 0) then ": {}"
+               else ":\n" + (.value | yaml($indent + 2))
+               end)
+          )
+        | join("\n")
+      elif type == "array" then
+        map(
+          if scalar then (" " * $indent) + "- " + yaml_scalar
+          elif type == "array" and length == 0 then (" " * $indent) + "- []"
+          elif type == "object" and length == 0 then (" " * $indent) + "- {}"
+          elif type == "object" then
+            to_entries as $entries
+            | $entries[0] as $first
+            | (" " * $indent) + "- " + ($first.key | yaml_key)
+              + (if ($first.value | scalar) then ": " + ($first.value | yaml_scalar)
+                 elif ($first.value | type == "array" and length == 0) then ": []"
+                 elif ($first.value | type == "object" and length == 0) then ": {}"
+                 else ":\n" + ($first.value | yaml($indent + 4))
+                 end)
+              + (if ($entries | length) > 1 then
+                   "\n" + ($entries[1:] | from_entries | yaml($indent + 2))
+                 else ""
+                 end)
+          else (" " * $indent) + "-\n" + yaml($indent + 2)
+          end
+        )
+        | join("\n")
+      else error("unsupported YAML value")
+      end;
+
+    if type != "object" then error("spec must be an object") else . end
+    | if allowed(["max_parallel", "phases", "finish"]) then .
+      else error("unknown top-level field") end
+    | if ((.max_parallel // 1) | type == "number" and floor == . and . >= 1) then .
+      else error("max_parallel must be a positive integer") end
+    | if (.phases | type == "array" and length > 0) then .
+      else error("phases must be a non-empty array") end
+    | if all(.phases[]; phase_contract) then .
+      else error("invalid phase contract") end
+    | if ((.finish // {}) | finish_contract) then .
+      else error("invalid finish contract") end
+    | (.phases | map(.id)) as $ids
+    | if ($ids | length) == ($ids | unique | length) then .
+      else error("phase ids must be unique") end
+    | if all(.phases[]; (.needs // []) as $needs
+        | all($needs[]; . as $need | ($ids | index($need)) != null)) then .
+      else error("phase has an unknown dependency") end
+    | if acyclic(.phases) then . else error("phase dependency graph contains a cycle") end
+    | ((.finish // {}).on_success // [] | map(.skill)) as $success_skills
+    | ((.finish // {}).on_failure // [] | map(.skill)) as $failure_skills
+    | if (($success_skills | map(select(. == "bdx:close")) | length) <= 1)
+        and (($success_skills | index("bdx:close")) as $close
+          | $close == null or $close == (($success_skills | length) - 1)) then .
+      else error("bdx:close must appear at most once and last in finish.on_success") end
+    | if ($failure_skills | index("bdx:close")) == null then .
+      else error("bdx:close is not allowed in finish.on_failure") end
+    | {
+        api_version: "bdx.dev/orchestration/v1",
+        kind: "AgentPlan",
+        strategy: {
+          kind: "dag",
+          max_parallel: (.max_parallel // 1)
+        },
+        defaults: {
+          failure: {
+            attempts: 1,
+            then: "halt"
+          }
+        },
+        phases: [
+          .phases[]
+          | {
+              id,
+              title,
+              needs: (.needs // []),
+              prepare: (.prepare // []),
+              run,
+              entry,
+              completion,
+              failure
+            }
+          | with_entries(select(.value != null and .value != []))
+        ],
+        finish: (.finish // {})
+      }
+    | with_entries(select(.value != {}))
+    | yaml(0)
+  ' "$SPEC"
+}
+
+BLOCK_TMP=$(mktemp "${TMPDIR:-/tmp}/bdx-orchestration-block.XXXXXX")
+PLAN_TMP=""
+LOCK_DIR=""
+LOCK_OWNED=0
+cleanup() {
+  rm -f -- "$BLOCK_TMP"
+  [ -z "$PLAN_TMP" ] || rm -f -- "$PLAN_TMP"
+  if [ "$LOCK_OWNED" -eq 1 ]; then
+    rm -f -- "$LOCK_DIR/pid"
+    rmdir -- "$LOCK_DIR" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+if ! (
+  printf '## Orchestration\n\n```yaml\n'
+  render_manifest || exit $?
+  printf '```\n'
+) > "$BLOCK_TMP"; then
+  die "invalid spec: $SPEC"
+fi
+
+if [ "$MODE" = render ]; then
+  cat "$BLOCK_TMP"
+  exit 0
+fi
+
+heading_count=$(grep -Ec '^## Orchestration[[:space:]]*$' "$PLAN" || true)
+[ "$heading_count" -le 1 ] || die "plan contains multiple Orchestration sections: $PLAN"
+
+LOCK_DIR="$PLAN.bdx-lock"
+acquired=0
+LOCK_ATTEMPTS="${BDX_PLAN_ORCHESTRATION_LOCK_ATTEMPTS:-100}"
+case "$LOCK_ATTEMPTS" in
+  ''|*[!0-9]*|0) die "BDX_PLAN_ORCHESTRATION_LOCK_ATTEMPTS must be a positive integer" ;;
+esac
+for _attempt in $(seq 1 "$LOCK_ATTEMPTS"); do
+  if mkdir "$LOCK_DIR" 2>/dev/null; then
+    acquired=1
+    LOCK_OWNED=1
+    printf '%s\n' "$$" > "$LOCK_DIR/pid"
+    break
+  fi
+  sleep 0.05
+done
+[ "$acquired" -eq 1 ] || die "timed out waiting for plan lock: $LOCK_DIR"
+
+PLAN_TMP=$(mktemp "${PLAN}.tmp.XXXXXX")
+awk -v block="$BLOCK_TMP" '
+  function emit_block( line) {
+    while ((getline line < block) > 0) print line
+    close(block)
+    inserted=1
+  }
+
+  /^## Orchestration[[:space:]]*$/ {
+    emit_block()
+    in_orchestration=1
+    next
+  }
+
+  in_orchestration && /^## / {
+    in_orchestration=0
+    print ""
+    print
+    next
+  }
+
+  in_orchestration { next }
+
+  !inserted && /^## (Key decisions|Open questions|Verification|Log|Related)[[:space:]]*/ {
+    emit_block()
+    print ""
+    print
+    next
+  }
+
+  { print }
+
+  END {
+    if (!inserted) {
+      if (NR > 0) print ""
+      emit_block()
+    }
+  }
+' "$PLAN" > "$PLAN_TMP"
+
+chmod --reference="$PLAN" "$PLAN_TMP" 2>/dev/null || \
+  chmod "$(stat -f '%Lp' "$PLAN" 2>/dev/null || stat -c '%a' "$PLAN")" "$PLAN_TMP"
+mv -f -- "$PLAN_TMP" "$PLAN"
+PLAN_TMP=""
+printf '%s\n' "$PLAN"

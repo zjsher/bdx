@@ -1,4 +1,4 @@
-.PHONY: patch minor major release help test test-plugin test-project-resolver test-plan-frontmatter test-install test-install-shell test-install-permissions test-hooks
+.PHONY: patch minor major release help test test-plugin test-project-resolver test-plan-frontmatter test-plan-orchestration test-install test-install-shell test-install-permissions test-hooks
 
 # Pick docker or fall back to podman so the test targets work for either runtime.
 DOCKER ?= $(shell command -v docker 2>/dev/null || command -v podman 2>/dev/null)
@@ -21,6 +21,7 @@ help:
 	@echo "  make test-plugin            # restored lifecycle/package invariants"
 	@echo "  make test-project-resolver  # per-project Beads routing"
 	@echo "  make test-plan-frontmatter  # atomic status/session projection"
+	@echo "  make test-plan-orchestration # validated plan orchestration rendering"
 	@echo "  make test-hooks             # PreToolUse guards + bdx-note end-to-end"
 	@echo ""
 	@echo "Installer testing (clean-slate container):"
@@ -85,5 +86,8 @@ test-project-resolver:
 test-plan-frontmatter:
 	@bash dev/test-plan-frontmatter.sh
 
+test-plan-orchestration:
+	@bash dev/test-plan-orchestration.sh
+
 # Everything that runs without docker.
-test: test-plugin test-project-resolver test-plan-frontmatter test-hooks
+test: test-plugin test-project-resolver test-plan-frontmatter test-plan-orchestration test-hooks

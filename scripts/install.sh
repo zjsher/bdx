@@ -333,6 +333,7 @@ main() {
           "Bash(bd:*)",
           "Bash(bdx-resolve-project:*)",
           "Bash(bdx-plan-frontmatter:*)",
+          "Bash(bdx-plan-orchestration:*)",
           "Bash(bdx-sync-status:*)",
           "Read(\($ah)/**)",
           "Write(\($ah)/**)",
@@ -355,6 +356,7 @@ main() {
           "Bash(bd:*)",
           "Bash(bdx-resolve-project:*)",
           "Bash(bdx-plan-frontmatter:*)",
+          "Bash(bdx-plan-orchestration:*)",
           "Bash(bdx-sync-status:*)",
           "Read(\($ah)/**)",
           "Write(\($ah)/**)",
@@ -434,6 +436,11 @@ prefix_rule(
     pattern = ["bdx-plan-frontmatter"],
     decision = "allow",
     justification = "bdx atomically updates managed live-plan frontmatter",
+)
+prefix_rule(
+    pattern = ["bdx-plan-orchestration"],
+    decision = "allow",
+    justification = "bdx validates and atomically writes generated plan orchestration",
 )
 prefix_rule(
     pattern = ["bdx-sync-status"],

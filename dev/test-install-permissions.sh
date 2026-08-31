@@ -30,8 +30,9 @@ jq -e '.permissions.allow | index("Bash(existing:*)") != null' "$TEST_HOME/.clau
 jq -e '.permissions.allow | index("Bash(bd:*)") != null' "$TEST_HOME/.claude/settings.json" >/dev/null
 jq -e '.permissions.allow | index("Bash(bdx-resolve-project:*)") != null' "$TEST_HOME/.claude/settings.json" >/dev/null
 jq -e '.permissions.allow | index("Bash(bdx-plan-frontmatter:*)") != null' "$TEST_HOME/.claude/settings.json" >/dev/null
+jq -e '.permissions.allow | index("Bash(bdx-plan-orchestration:*)") != null' "$TEST_HOME/.claude/settings.json" >/dev/null
 jq -e '.permissions.allow | index("Bash(bdx-sync-status:*)") != null' "$TEST_HOME/.claude/settings.json" >/dev/null
-jq -e 'index("Bash(bd:*)") == null and index("Bash(bdx-plan-frontmatter:*)") != null' \
+jq -e 'index("Bash(bd:*)") == null and index("Bash(bdx-plan-frontmatter:*)") != null and index("Bash(bdx-plan-orchestration:*)") != null' \
   "$TEST_HOME/.claude/bdx-managed-permissions.json" >/dev/null
 
 RULES_FILE="$TEST_CODEX_HOME/rules/bdx.rules"
@@ -41,6 +42,7 @@ grep -Fqx '# user rule survives' "$RULES_FILE"
 grep -Fq 'pattern = ["bd"]' "$RULES_FILE"
 grep -Fq 'pattern = ["bdx-resolve-project"]' "$RULES_FILE"
 grep -Fq 'pattern = ["bdx-plan-frontmatter"]' "$RULES_FILE"
+grep -Fq 'pattern = ["bdx-plan-orchestration"]' "$RULES_FILE"
 grep -Fq 'pattern = ["bdx-sync-status"]' "$RULES_FILE"
 
 if command -v codex >/dev/null 2>&1; then
@@ -49,6 +51,8 @@ if command -v codex >/dev/null 2>&1; then
   codex execpolicy check --rules "$RULES_FILE" -- bdx-resolve-project bd-123 \
     | jq -e '.decision == "allow"' >/dev/null
   codex execpolicy check --rules "$RULES_FILE" -- bdx-plan-frontmatter bd-123 --status open \
+    | jq -e '.decision == "allow"' >/dev/null
+  codex execpolicy check --rules "$RULES_FILE" -- bdx-plan-orchestration render --spec /tmp/spec.json \
     | jq -e '.decision == "allow"' >/dev/null
   codex execpolicy check --rules "$RULES_FILE" -- bdx-sync-status bd-123 \
     | jq -e '.decision == "allow"' >/dev/null

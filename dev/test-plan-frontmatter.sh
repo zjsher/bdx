@@ -110,7 +110,8 @@ grep -Fq 'invalid session identity' "$TEST_ROOT/session.err"
 # Concurrent attaches serialize, so every session identity survives.
 pids=()
 for n in $(seq 1 20); do
-  run_meta bd-meta --session "codex:race-$n" &
+  HOME="$TEST_HOME" AGENT_HOME="$AGENT" \
+    "$REPO_ROOT/scripts/bdx-plan-frontmatter" bd-meta --session "codex:race-$n" >/dev/null &
   pids+=("$!")
 done
 
@@ -118,18 +119,24 @@ done
 # whole-file transform loses the other's update.
 pids=()
 for n in $(seq 1 12); do
-  run_meta bd-meta --status in_progress --session "codex:mixed-$n" &
+  HOME="$TEST_HOME" AGENT_HOME="$AGENT" \
+    "$REPO_ROOT/scripts/bdx-plan-frontmatter" bd-meta --status in_progress \
+      --session "codex:mixed-$n" >/dev/null &
   pids+=("$!")
   HOME="$TEST_HOME" AGENT_HOME="$AGENT" \
     "$REPO_ROOT/scripts/bdx-note" -q bd-meta "mixed-note-$n" &
   pids+=("$!")
 done
-for pid in "${pids[@]}"; do wait "$pid"; done
+worker_failed=0
+for pid in "${pids[@]}"; do wait "$pid" || worker_failed=1; done
+test "$worker_failed" = 0
 for n in $(seq 1 12); do
   grep -Fqx "  - \"codex:mixed-$n\"" "$PLAN"
   grep -Fq "mixed-note-$n" "$PLAN"
 done
-for pid in "${pids[@]}"; do wait "$pid"; done
+worker_failed=0
+for pid in "${pids[@]}"; do wait "$pid" || worker_failed=1; done
+test "$worker_failed" = 0
 for n in $(seq 1 20); do
   test "$(grep -Fxc "  - \"codex:race-$n\"" "$PLAN")" = "1"
 done
