@@ -1,3 +1,12 @@
+## v0.15.1 (2026-08-31)
+
+### ✨ Features
+- [commits] Added agent YAML orchestration functionality (dfb1ce4)
+
+---
+
+**Note:** No code diffs were provided in the input—only commit hashes and messages ("agent yamlorchestration" and "..."). The second commit message is empty/placeholder, so no details could be extracted. To generate a more accurate and detailed changelog, please provide the actual code diffs showing what was added, changed, or fixed in these commits.
+
 ## v0.14.1 (2026-08-24)
 
 ### 🛠️ Improvements
