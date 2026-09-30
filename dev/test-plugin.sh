@@ -89,4 +89,28 @@ rg -q 'bdx-resolve-project' skills/attach/SKILL.md || \
 rg -q 'bdx-validate-agent-home-delete' scripts/uninstall.sh || \
   fail "uninstaller no longer validates AGENT_HOME before recursive deletion"
 
+# Source the real SessionStart output as a subsequent Bash tool call would.
+# Values must survive shell parsing without expansion or an initialization error.
+TEST_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/bdx-session-env.XXXXXX")
+trap 'rm -rf "$TEST_ROOT"' EXIT
+for agent_home in \
+  "$TEST_ROOT/agent" \
+  "$TEST_ROOT/My Drive/main/notes/agent" \
+  "$TEST_ROOT/"'quotes" $HOME $(false) `false` back\slash'; do
+  env_file="$TEST_ROOT/claude.env"
+  : > "$env_file"
+  AGENT_HOME="$agent_home" CLAUDE_ENV_FILE="$env_file" \
+    bash scripts/bdx-ensure-agent-home.sh
+  bash -eu -c '
+    unset AGENT_HOME
+    source "$1"
+    test "$AGENT_HOME" = "$2"
+    test "$PATH" = "$3:$4"
+    for directory in plan context summary inbox; do
+      test -d "$AGENT_HOME/$directory"
+    done
+  ' bash "$env_file" "$agent_home" "$ROOT/scripts" "$PATH" || \
+    fail "session environment did not preserve AGENT_HOME: $agent_home"
+done
+
 echo "legacy Markdown-backed plugin tests passed"

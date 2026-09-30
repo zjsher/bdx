@@ -22,7 +22,7 @@ mkdir -p "$AGENT_HOME/plan" "$AGENT_HOME/context" "$AGENT_HOME/summary" "$AGENT_
 SCRIPTS_DIR=$(cd "$(dirname "$0")" && pwd)
 
 if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
-  echo "export AGENT_HOME=$AGENT_HOME" >> "$CLAUDE_ENV_FILE"
+  printf 'export AGENT_HOME=%q\n' "$AGENT_HOME" >> "$CLAUDE_ENV_FILE"
   echo "export PATH=\"$SCRIPTS_DIR:\$PATH\"" >> "$CLAUDE_ENV_FILE"
 fi
 

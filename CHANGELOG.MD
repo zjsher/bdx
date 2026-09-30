@@ -1,3 +1,12 @@
+## v0.16.0 (2026-09-06)
+
+### ⚠️ Insufficient Information
+
+- No code diffs were provided, and the commit messages ("optin", ".") do not contain enough detail to determine specific functionality, files changed, or implementation details.
+- Unable to generate a meaningful changelog without access to the actual code changes.
+
+**Recommendation:** Please provide the diff content for commits `ab1bd79` and `1ad7960` so an accurate changelog can be written based on the actual code modifications.
+
 ## v0.15.1 (2026-08-31)
 
 ### ✨ Features
