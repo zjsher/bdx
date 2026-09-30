@@ -1,6 +1,6 @@
 {
   "name": "bdx",
-  "version": "0.16.1",
+  "version": "0.16.2",
   "description": "Opt-in Beads workflow skills + hooks: durable planning and handoff, a lightweight build-loop for tracked features, and per-increment slice/slice-review/slice-loop assurance. Auto-attaches sessions launched with a bd task and enforces summary-before-close.",
   "author": {
     "name": "Zach Sherbondy"
